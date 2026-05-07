@@ -1,0 +1,34 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# CRM exports, transcripts, recordings, and generated coaching data
+/data/close/*
+!/data/close/.gitkeep
+/data/coach/*
+!/data/coach/.gitkeep
+/reports/daily/*
+!/reports/daily/.gitkeep
+/reports/weekly/*
+!/reports/weekly/.gitkeep
+/reports/monthly/*
+!/reports/monthly/.gitkeep
+/reports/quarterly/*
+!/reports/quarterly/.gitkeep
+/output/pdf/*
+!/output/pdf/.gitkeep
+
+# Runtime/build noise
+node_modules/
+.next/
+tsconfig.tsbuildinfo
+__pycache__/
+tmp/
+npm-debug.log*
+tmp-next-start*.log
+
+# Generated design audit artifacts
+/design-audit-capture*/
+/design-audit-report*.md
+/design-audit-summary*.json

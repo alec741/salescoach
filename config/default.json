@@ -1,0 +1,9 @@
+{
+  "activeCompanyId": "enhancify",
+  "methodologyPath": "config/methodology.decoded.json",
+  "promptTemplatePath": "prompts/coach-system.md",
+  "promptTemplates": {
+    "default": "prompts/coach-system.md",
+    "live_call": "prompts/live-call-coach.md"
+  }
+}

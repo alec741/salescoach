@@ -1,0 +1,20 @@
+{
+  "mode": "exclude_clients_default_include",
+  "excludeLeadStatuses": ["Client", "DO NOT CONTACT"],
+  "excludeCustomFieldValues": [
+    { "field": "Customer type", "values": ["Client"] },
+    { "field": "Lead type", "values": ["Client"] },
+    { "field": "Customer Data", "values": ["Client"] },
+    { "field": "Customer data", "values": ["Client"] }
+  ],
+  "trackedCustomFields": ["Customer type", "Lead type", "Customer Data", "Customer data", "Lead Owner", "Original Lead Owner", "Lead Source Tier", "Lead Source", "sales_opportunity"],
+  "excludeRepUserIds": [],
+  "includeRepUserIds": [],
+  "includeRepNameMatches": ["Bryton", "Josh", "Jen", "Janay", "Tanner", "Jonathan", "Shea", "Colton", "Greg", "Chris", "Alec"],
+  "excludeRepNameMatches": ["Bryan John Danao", "Frank Palmeri", "Mike Super", "Yanuel Morales"],
+  "strictRequireSalesPipeline": false,
+  "strictRequireCustomerType": false,
+  "includePipelineNames": ["Sales"],
+  "includeCustomerTypes": ["Contractor"],
+  "notes": "Default is intentionally permissive: exclude known clients and DNC records, but do not require Customer type or a Sales opportunity because those fields may be missing or created after the call. Use strict flags only for audits."
+}

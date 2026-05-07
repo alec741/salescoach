@@ -1,0 +1,88 @@
+{
+  "id": "template",
+  "companyName": "New Company",
+  "positioning": {
+    "oneLiner": "Replace with a concise description of what this company helps customers do.",
+    "primaryOutcome": "Replace with the business result customers care about most.",
+    "category": "Replace with the market category or buying frame.",
+    "differentiators": [
+      "Replace with a concrete differentiator.",
+      "Replace with another concrete differentiator."
+    ]
+  },
+  "icp": {
+    "bestFit": [
+      "Replace with firmographic, technographic, or situational fit criteria.",
+      "Replace with the customer maturity level or pain pattern that makes the offer relevant."
+    ],
+    "poorFit": [
+      "Replace with disqualifying traits or contexts.",
+      "Replace with conditions where the company should not sell."
+    ],
+    "buyerPersonas": [
+      {
+        "role": "Economic Buyer",
+        "priorities": ["Replace with priority."],
+        "pains": ["Replace with pain."],
+        "commonObjections": ["Replace with objection."]
+      },
+      {
+        "role": "Champion",
+        "priorities": ["Replace with priority."],
+        "pains": ["Replace with pain."],
+        "commonObjections": ["Replace with objection."]
+      }
+    ],
+    "triggerEvents": [
+      "Replace with event that creates urgency.",
+      "Replace with another event that creates urgency."
+    ]
+  },
+  "offers": [
+    {
+      "id": "offer-1",
+      "name": "Primary Offer",
+      "type": "service",
+      "bestFor": ["Replace with use cases or customer segments."],
+      "problemsSolved": ["Replace with problems this offer solves."],
+      "notFor": ["Replace with poor-fit use cases."],
+      "deliveryNotes": "Replace with delivery model, timeline, constraints, or dependencies."
+    }
+  ],
+  "qualification": {
+    "mustHave": [
+      "Replace with non-negotiable qualification criterion."
+    ],
+    "strongSignals": [
+      "Replace with positive fit signal."
+    ],
+    "redFlags": [
+      "Replace with red flag."
+    ],
+    "discoveryQuestions": [
+      "Replace with a diagnostic discovery question."
+    ]
+  },
+  "proof": [
+    {
+      "claim": "Replace with approved proof claim.",
+      "source": "Replace with source, case study, or internal note."
+    }
+  ],
+  "objections": [
+    {
+      "objection": "Replace with common objection.",
+      "responseStrategy": "Replace with approved response strategy."
+    }
+  ],
+  "competitors": [
+    {
+      "name": "Alternative Option",
+      "positioningNote": "Replace with how to position against this alternative."
+    }
+  ],
+  "voice": {
+    "tone": "direct, useful, specific",
+    "avoid": ["generic claims", "unsupported guarantees", "invented proof"]
+  }
+}

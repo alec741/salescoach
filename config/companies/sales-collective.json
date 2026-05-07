@@ -1,0 +1,66 @@
+{
+  "id": "sales-collective",
+  "companyName": "Sales Collective",
+  "positioning": {
+    "oneLiner": "Legacy placeholder profile for Sales Collective-specific context.",
+    "primaryOutcome": "Replace with the precise business outcome Sales Collective sells.",
+    "category": "Replace with category.",
+    "differentiators": [
+      "Replace with verified differentiator.",
+      "Replace with verified differentiator."
+    ]
+  },
+  "icp": {
+    "bestFit": [
+      "Replace with Sales Collective best-fit ICP criteria."
+    ],
+    "poorFit": [
+      "Replace with Sales Collective poor-fit criteria."
+    ],
+    "buyerPersonas": [
+      {
+        "role": "Replace with buyer role",
+        "priorities": ["Replace with priority."],
+        "pains": ["Replace with pain."],
+        "commonObjections": ["Replace with objection."]
+      }
+    ],
+    "triggerEvents": [
+      "Replace with Sales Collective trigger event."
+    ]
+  },
+  "offers": [
+    {
+      "id": "sales-collective-primary-offer",
+      "name": "Replace with Sales Collective offer",
+      "type": "service",
+      "bestFor": ["Replace with best-fit use case."],
+      "problemsSolved": ["Replace with problem solved."],
+      "notFor": ["Replace with poor-fit use case."],
+      "deliveryNotes": "Replace with delivery details."
+    }
+  ],
+  "qualification": {
+    "mustHave": ["Replace with must-have criterion."],
+    "strongSignals": ["Replace with positive signal."],
+    "redFlags": ["Replace with red flag."],
+    "discoveryQuestions": ["Replace with diagnostic question."]
+  },
+  "proof": [
+    {
+      "claim": "Replace with approved Sales Collective proof claim.",
+      "source": "Replace with source."
+    }
+  ],
+  "objections": [
+    {
+      "objection": "Replace with common objection.",
+      "responseStrategy": "Replace with approved response."
+    }
+  ],
+  "competitors": [],
+  "voice": {
+    "tone": "direct, practical, diagnostic",
+    "avoid": ["unsupported claims", "invented case studies"]
+  }
+}

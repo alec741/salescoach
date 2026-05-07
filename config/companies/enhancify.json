@@ -1,0 +1,608 @@
+{
+  "id": "enhancify",
+  "companyName": "Enhancify",
+  "positioning": {
+    "oneLiner": "Enhancify is a contractor financing technology platform that helps businesses offer homeowner financing options without dealer fees.",
+    "primaryOutcome": "Help contractors win more jobs, increase average job size, reduce dealer-fee drag, and offer financing without becoming the lender.",
+    "category": "Home improvement and home services financing marketplace for contractors.",
+    "differentiators": [
+      "Marketplace model with roughly 30 lending institutions instead of a single direct lender.",
+      "No dealer fees charged to contractors on financed projects.",
+      "Co-branded contractor financing portal, contractor dashboard, marketing assets, and sales training.",
+      "Soft-pull pre-approval flow before the homeowner selects an option and completes final lender approval.",
+      "Designed for newer and smaller contractors that may not meet direct-lender business requirements."
+    ]
+  },
+  "salesMotion": {
+    "leadSource": "Warm inbound leads from contractors who expressed interest in offering financing or comparing options.",
+    "primaryChannel": "Phone-first conversations; most sales conversations are phone only.",
+    "averageContractValue": "Approximately $1,500 per year, with standard annual subscriptions ranging from $1,249 to $4,999.",
+    "targetClosePattern": "One-call close when fit and urgency are present; overall sales cycle is normally under two weeks.",
+    "callTimeboxMinutes": 30,
+    "benchmarkConversion": "About 25% of leads close in the current motion.",
+    "coachBias": "Move quickly from permission to segment ID, quantified pain, value math, expectation-setting, and a clear close without enterprise-style over-discovery."
+  },
+  "icp": {
+    "bestFit": [
+      "Residential home improvement or home service contractors such as roofing, remodeling, fencing, landscaping, windows, siding, pools, spas, and similar project-based services.",
+      "Average job size generally between $5,000 and $50,000, with a strong sweet spot around $10,000 to $20,000 projects.",
+      "Projects are normally scheduled at least one week after estimate or sale, giving financing time to fit the project timeline.",
+      "Contractors who lose deals, shrink project scope, discount, or absorb margin when homeowners react to price.",
+      "Contractors paying for marketing or working valuable referral leads where each missed estimate has clear opportunity cost.",
+      "Contractors currently using dealer-fee financing and feeling margin pressure, approval friction, or cash-flow constraints."
+    ],
+    "poorFit": [
+      "Solar dealers whose pitch depends on replacing an electric bill with a very low financing payment through heavy dealer-fee buy-downs.",
+      "Emergency or same-day/next-day HVAC install motions where the homeowner needs immediate funding and installation before a typical funding window can work.",
+      "Commercial-only contractors or customers that require commercial lending as the main use case.",
+      "Custom home builders or very large project sellers where the project economics do not match the platform's typical financing patterns.",
+      "Contractors who require guaranteed contractor-direct funding or cannot accept that funds go to the homeowner/applicant.",
+      "Prospects who need guaranteed rates, guaranteed approvals, guaranteed loan amounts, or guaranteed terms."
+    ],
+    "buyerPersonas": [
+      {
+        "role": "Owner-Operator Contractor",
+        "priorities": [
+          "Stop losing jobs to price objections or competitors with financing.",
+          "Look professional without adding complex back-office work.",
+          "Get a simple tool they can use from the truck, jobsite, or estimate."
+        ],
+        "pains": [
+          "The owner is constantly on the move and does not want a complicated process.",
+          "Lost jobs are personal because the owner generated, sold, and often performs the work.",
+          "They are cautious about wasting hard-earned money on another subscription."
+        ],
+        "commonObjections": [
+          "How much does it cost?",
+          "Will my customers actually get approved?",
+          "I need to think about it or talk to my spouse/partner."
+        ]
+      },
+      {
+        "role": "Growth-Minded Business Owner",
+        "priorities": [
+          "Scale average ticket and close rate.",
+          "Protect margin from dealer fees.",
+          "Train the team to offer financing consistently."
+        ],
+        "pains": [
+          "Dealer fees can force price increases or reduce profit margin.",
+          "Low approvals or funding timing can stall jobs.",
+          "Growth goals require better conversion from existing estimate volume."
+        ],
+        "commonObjections": [
+          "How is this different from my current lender?",
+          "Does the money come to me or the customer?",
+          "What support do I get after I sign up?"
+        ]
+      }
+    ],
+    "triggerEvents": [
+      "A homeowner asks about financing or monthly payments.",
+      "A contractor loses estimates after presenting price.",
+      "The contractor starts paying for marketing and needs more estimate conversion.",
+      "A contractor pays 7-15% dealer fees or raises prices to offset them.",
+      "A direct lender denies too many applicants or requires business history/revenue the contractor cannot meet.",
+      "The contractor wants financing available before the busy season."
+    ]
+  },
+  "qualificationSegments": {
+    "primarySegments": [
+      {
+        "id": "contractor-a-no-financing",
+        "name": "Contractor A - No Financing Solution",
+        "definition": "The contractor does not currently offer financing and is trying to solve price objections, lost deals, smaller project scopes, or growth constraints.",
+        "diagnosticSignals": [
+          "Homeowners ask about financing or monthly payments.",
+          "Prospect loses jobs after price is presented.",
+          "Prospect discounts, reduces scope, or waits on customer callbacks.",
+          "Prospect has revenue or hiring goals that require better estimate conversion."
+        ],
+        "bestQuestions": [
+          "Out of your last 10 estimates, how many turned into price objections or financing conversations?",
+          "When someone cannot move forward at the full project price, do they disappear, delay, or shrink the job?",
+          "What is your average job size, and what would one extra closed job per month be worth?",
+          "Are those leads paid, referral, or repeat customer opportunities?"
+        ],
+        "solutionAngle": "Show how a monthly-payment option can help preserve price, win more jobs, and create upsell room without making the contractor become a financing expert."
+      },
+      {
+        "id": "contractor-b-dealer-fee-financing",
+        "name": "Contractor B - Dealer-Fee or Direct-Lender Financing",
+        "definition": "The contractor already uses a financing option and is feeling dealer-fee cost, strict credit boxes, denial friction, or funding/process mismatch.",
+        "diagnosticSignals": [
+          "Prospect pays 7-15% dealer fees on financed jobs.",
+          "Prospect raises prices or eats margin to use financing.",
+          "Prospect sees denials from strict direct-lender requirements.",
+          "Prospect dislikes rate sheets, buy-down complexity, or post-completion funding constraints."
+        ],
+        "bestQuestions": [
+          "What percent of your projects do you finance today?",
+          "What dealer fee are you usually paying, and on what average financed job size?",
+          "Do you usually eat that fee or build it into the price?",
+          "How often do applicants get denied or fail to get an option that works?"
+        ],
+        "solutionAngle": "Position Enhancify as a marketplace alternative that can eliminate dealer-fee drag, expand options, and convert financed jobs into a cash-like workflow for the contractor."
+      }
+    ],
+    "poorFitSegments": [
+      {
+        "id": "solar-heavy-buydown",
+        "reason": "Solar economics often depend on 20-30% dealer-fee buy-downs to create a payment that replaces the electric bill; Enhancify does not enable that same pitch."
+      },
+      {
+        "id": "emergency-hvac-same-day",
+        "reason": "Same-day or next-day emergency installs may not fit normal funding timing, especially where the job must start immediately."
+      },
+      {
+        "id": "contractor-direct-funding-required",
+        "reason": "Enhancify does not guarantee direct-to-contractor funding; the applicant receives funds directly."
+      },
+      {
+        "id": "guarantee-seeker",
+        "reason": "The platform cannot guarantee approvals, rates, loan amounts, terms, or funding timing."
+      }
+    ]
+  },
+  "offers": [
+    {
+      "id": "self-service",
+      "name": "Self-Service Plan",
+      "type": "annual subscription",
+      "price": "$1,249 billed annually",
+      "bestFor": [
+        "Contractors who mainly need the financing tech, co-branded page, and core tools.",
+        "Owners comfortable implementing financing with lighter support."
+      ],
+      "problemsSolved": [
+        "Gives the contractor a financing link, calculator, marketing materials, customer support, commission eligibility, and a branded page.",
+        "Creates a low-cost annual entry point for offering financing without dealer fees."
+      ],
+      "notFor": [
+        "Contractors who need hands-on training or frequent support from a dedicated account manager.",
+        "Contractors who want Enhancify specialists helping homeowners through the process."
+      ],
+      "deliveryNotes": "Annual plan. Public site frames this as less than $104/month."
+    },
+    {
+      "id": "professional-growth",
+      "name": "Professional Growth Plan",
+      "type": "annual subscription",
+      "price": "$1,749 billed annually",
+      "bestFor": [
+        "Contractors who want expert training, onboarding, and a stronger support layer.",
+        "The default recommendation when the buyer wants ROI but still expects help getting financing adopted."
+      ],
+      "problemsSolved": [
+        "Includes Self-Service capabilities plus personal training, onboarding, meetings or calls on request, same-day response expectations, dedicated account manager, and up to 5 team members.",
+        "Helps the contractor implement financing into their sales process early enough to create renewal-worthy usage."
+      ],
+      "notFor": [
+        "Contractors who only need the tech and will not use training or support.",
+        "Contractors who want Enhancify to handle homeowner financing conversations directly."
+      ],
+      "deliveryNotes": "Annual plan. Public site frames this as less than $146/month and marks it as popular."
+    },
+    {
+      "id": "concierge",
+      "name": "Concierge Plan",
+      "type": "annual subscription",
+      "price": "$4,999 billed annually",
+      "bestFor": [
+        "Contractors who want finance experts to help homeowners through the financing process.",
+        "Teams where customer hand-holding and response speed are more valuable than the lowest subscription price."
+      ],
+      "problemsSolved": [
+        "Includes broader support, unlimited customized branded pages, dedicated financial specialist support for customers, quick response times, personalized customer assistance, and up to 10 team members.",
+        "Acts like adding financing support capacity without hiring an internal finance specialist."
+      ],
+      "notFor": [
+        "Price-sensitive contractors who are unlikely to use customer-assist services.",
+        "Prospects whose average job size or estimate volume cannot justify the premium tier."
+      ],
+      "deliveryNotes": "Annual plan. Public site frames this as less than $417/month. Internal loop docs note legacy Concierge promo variants may exist when explicitly approved."
+    }
+  ],
+  "commercialModel": {
+    "plans": [
+      {
+        "id": "self-service",
+        "name": "Self-Service",
+        "annualPrice": 1249,
+        "positioning": "For contractors that just need the tech and will do the rest."
+      },
+      {
+        "id": "professional-growth",
+        "name": "Professional Growth",
+        "annualPrice": 1749,
+        "positioning": "For contractors that want expert training and are ready to grow immediately."
+      },
+      {
+        "id": "concierge",
+        "name": "Concierge",
+        "annualPrice": 4999,
+        "positioning": "For contractors who want finance experts to hold their customers' hand through the financing process."
+      }
+    ],
+    "commissions": [
+      "Contractors can earn a minimum $50 commission per funded project on eligible tiers.",
+      "Avoid promising a percentage commission rate or implying most loans create large commission payouts.",
+      "Concierge commission rules may differ from Self-Service and Professional Growth; verify current policy before promising."
+    ],
+    "guarantees": [
+      "Results Guarantee: summarized from training docs as a first-30-days refund policy tied to reviewing training materials and submitting ten customer applications without successful project funding.",
+      "Do not describe the guarantee loosely; use current approved policy language when closing."
+    ],
+    "promotions": [
+      {
+        "name": "$250 Commission Promotion",
+        "eligibility": "Professional Growth Plan only, first two qualifying deals within the first two months, when currently approved.",
+        "useCase": "Create urgency and encourage early implementation."
+      },
+      {
+        "name": "10% First-Year Discount",
+        "eligibility": "All tiers when currently approved.",
+        "useCase": "Trade a first-year discount for timely close commitment."
+      },
+      {
+        "name": "13-Month Subscription",
+        "eligibility": "Use selectively when approved.",
+        "useCase": "Mitigate slow-season timing objections."
+      },
+      {
+        "name": "Short Buyer's Remorse Refund Period",
+        "eligibility": "Use selectively when approved and time-boxed.",
+        "useCase": "Help a hesitant but qualified buyer confront a decision without creating an abuse path."
+      }
+    ],
+    "closeRequirements": [
+      "Confirm the lead is qualified and sees a painful business problem.",
+      "Set proper expectations about product limits before collecting payment.",
+      "Cover the Results Guarantee policy using approved language.",
+      "Confirm primary contact information before payment.",
+      "Send the transition to success email and complete new-client notes after close."
+    ]
+  },
+  "qualification": {
+    "mustHave": [
+      "Fits residential contractor or home services ICP, or a clearly analogous high-ticket service business.",
+      "Has a painful business problem tied to financing, price objection, job size, close rate, dealer fees, approvals, or funding timing.",
+      "Can afford an annual subscription and understands the cost of not solving the issue.",
+      "Can use a homeowner/applicant-funded model where the customer receives funds directly.",
+      "Has enough urgency to make a decision now or accept a concrete follow-up path."
+    ],
+    "strongSignals": [
+      "Average job size between $5,000 and $50,000.",
+      "Projects are usually scheduled at least a week out.",
+      "The contractor pays for leads or has valuable referral leads they do not want to waste.",
+      "The contractor has lost jobs because customers could not pay cash or objected to price.",
+      "The contractor already pays dealer fees or sees denials with a direct lender."
+    ],
+    "redFlags": [
+      "Solar pitch depends on very low monthly payment through heavy buy-downs.",
+      "Emergency same-day install is the primary motion.",
+      "The prospect demands guaranteed approvals, rates, terms, loan amounts, or direct-to-contractor funding.",
+      "The prospect cannot articulate a current problem or urgent reason to change.",
+      "The prospect only wants the cheapest possible subscription and rejects implementation work."
+    ],
+    "discoveryQuestions": [
+      "What got you interested in offering financing right now?",
+      "Have you ever used a financing option before?",
+      "What is your average job size?",
+      "What is the typical time from estimate to project start?",
+      "Out of 10 estimates, how many mention financing, monthly payments, or price concerns?",
+      "When price becomes the issue, do you lose the job, shrink the scope, discount, or wait on a callback?",
+      "If you already finance jobs, what dealer fee are you paying and how often are you using it?",
+      "What would one extra closed job per month be worth?",
+      "What growth goal makes solving this worth doing now?"
+    ],
+    "qualifiedOpportunityChecklist": [
+      "ICP fit is clear.",
+      "The prospect is aware of a painful problem.",
+      "The rep and prospect agree on root cause, impact, and current vs desired situation.",
+      "Status quo is not comfortable or consequence-free.",
+      "The prospect understands price, alternatives, and cost of inaction."
+    ]
+  },
+  "callFlow": {
+    "stages": [
+      {
+        "id": "opening",
+        "name": "Opening and Permission",
+        "minutes": "0-3",
+        "goal": "Establish sharp, enthusiastic, expert presence and get permission to ask questions before explaining product.",
+        "coachInstruction": "Use the inbound context, confirm owner/decision-maker status, ask what got them interested, then request permission to see if Enhancify can help."
+      },
+      {
+        "id": "segment-id",
+        "name": "Fast Qualification and Contractor A/B Branch",
+        "minutes": "3-7",
+        "goal": "Identify no-financing, dealer-fee financing, or poor-fit path quickly.",
+        "coachInstruction": "Ask whether they currently offer financing and, if yes, how it works and what it costs them."
+      },
+      {
+        "id": "quantified-discovery",
+        "name": "Quantified Discovery",
+        "minutes": "7-17",
+        "goal": "Uncover current situation, frequency, financial impact, collateral damage, and desired situation.",
+        "coachInstruction": "Ask fewer, better questions. Quantify lost jobs, reduced project size, dealer fees, denial rate, and the value of one or two additional wins."
+      },
+      {
+        "id": "solution",
+        "name": "Solution Mapped to Pain",
+        "minutes": "17-24",
+        "goal": "Connect Enhancify to the exact problem already agreed on.",
+        "coachInstruction": "Explain only the pieces that solve the prospect's pain: branded page, marketplace, soft-pull pre-approval, no dealer fees, support/training, and relevant plan."
+      },
+      {
+        "id": "expectations-close",
+        "name": "Expectation-Setting and Close",
+        "minutes": "24-30",
+        "goal": "Set product boundaries, ask clearly for the business, handle the first no, and loop only when value gaps are addressable.",
+        "coachInstruction": "Clarify not a lender, customer receives funds, approvals/rates/terms vary, and funding is typically 2-10 business days before asking for payment or a firm next step."
+      }
+    ],
+    "branchRules": [
+      "If the prospect has no financing, diagnose missed deals, price objections, reduced scope, lead source, and growth goals before solutioning.",
+      "If the prospect uses dealer-fee financing, diagnose fee percentage, financed volume, approval friction, pricing impact, and funding constraints before solutioning.",
+      "If the prospect asks price immediately, answer with annual plan range and bridge back to whether the economics make sense for their situation.",
+      "If the prospect cannot quantify pain, ask one math question and pause; do not continue into a full pitch.",
+      "If the prospect is poor-fit, explain why directly and avoid forcing a full sales presentation."
+    ],
+    "microAgreements": [
+      "Does that sound like what is happening?",
+      "If we could solve that without dealer fees, would that be worth looking at?",
+      "So one extra job a month would more than cover this, right?",
+      "Does that process fit how you already sell jobs?",
+      "Is there any reason we should not get this set up today?"
+    ]
+  },
+  "proof": [
+    {
+      "claim": "Enhancify is trusted by over 5,000 contractors.",
+      "source": "Enhancify public homepage and training docs."
+    },
+    {
+      "claim": "Public site claims a 16% average increase in deal size and a 21% self-reported average increase in deals closed.",
+      "source": "Enhancify public homepage, By The Numbers section."
+    },
+    {
+      "claim": "The platform supports financing up to $200,000, but actual loan amounts depend on lender and applicant creditworthiness.",
+      "source": "Enhancify public homepage and legal disclosures on public pages."
+    },
+    {
+      "claim": "Training docs teach that most good-credit applicants often see more realistic personal-loan ranges around $10,000-$20,000, with excellent-credit applicants having access to larger amounts and better options.",
+      "source": "Setting Right Expectations of the Product.md."
+    }
+  ],
+  "productFacts": {
+    "whatItIs": [
+      "A technology platform and financing marketplace, not a lender.",
+      "A co-branded online portal contractors can share by link, website, QR code, or mobile device.",
+      "A contractor portal with loan tracking, sales training, marketing tools, and partnership resources."
+    ],
+    "availableProducts": [
+      "Unsecured personal loans.",
+      "Secured loans in limited cases, often subprime-oriented and collateral-based.",
+      "0% introductory term credit card marketplace options for qualified applicants.",
+      "HELOC options where applicable."
+    ],
+    "customerExperience": [
+      "Homeowner/applicant completes a soft-pull pre-approval application.",
+      "Applicant reviews available options, then completes account setup and final approval with the selected lender.",
+      "All loan products ultimately require a hard inquiry before final approval and disbursement."
+    ],
+    "fundingExpectations": [
+      "Personal loan funds typically arrive by ACH to the applicant between 2 and 10 business days when setup is completed promptly.",
+      "0% introductory credit cards usually arrive by mail in 7-10 business days.",
+      "Funding timelines are not controlled or guaranteed by Enhancify."
+    ]
+  },
+  "complianceGuardrails": [
+    "Say Enhancify is a tech platform or marketplace, not a lender.",
+    "Do not say Enhancify controls APR, loan amounts, repayment terms, approvals, funding timelines, underwriting, or lender decisions.",
+    "Do not characterize 0% introductory term credit cards as 0% loans or as the same as direct-lender promotional loan products.",
+    "Clarify that soft-pull pre-approval is not final approval; final lender approval involves a hard inquiry.",
+    "Clarify that funds go to the applicant/customer, not directly to the contractor.",
+    "Do not guarantee funding before a job starts; explain typical 2-10 business day funding where applicable.",
+    "Do not promise best rates, broad approvals for every 550+ applicant, or large approval amounts for average credit profiles.",
+    "Describe the Funding Designation Agreement as a good-faith promise to use funds with the contractor, not a binding contract that forces fund usage.",
+    "Do not promise a 1% commission rate, large typical commissions, or specific commission outcomes unless policy is verified."
+  ],
+  "objections": [
+    {
+      "objection": "How much does it cost?",
+      "responseStrategy": "Answer directly with annual plan range, then bridge to ROI math: one recovered or upsized job can justify the subscription if their current pain is real."
+    },
+    {
+      "objection": "I need to think about it.",
+      "responseStrategy": "Identify the no behind the no. Ask whether the concern is value, trust, timing, price, implementation, or partner approval; loop only against the real gap."
+    },
+    {
+      "objection": "I need to talk to my spouse or partner.",
+      "responseStrategy": "Respect the stakeholder but test whether the prospect personally sees the value. If yes, set a tight decision path or use approved buyer's-remorse loop only when appropriate."
+    },
+    {
+      "objection": "Does the money come to me or the customer?",
+      "responseStrategy": "Clarify that the applicant receives funds directly. Reframe that this lets newer/smaller contractors offer financing without direct-lender business requirements or dealer-fee model."
+    },
+    {
+      "objection": "What if the customer takes the money and does not use me?",
+      "responseStrategy": "Explain the Funding Designation Agreement as a good-faith agreement and advise the contractor to use their own customer contract quickly; do not imply Enhancify can force fund usage."
+    },
+    {
+      "objection": "Will my customers get approved?",
+      "responseStrategy": "Explain marketplace breadth and soft-pull pre-approval, then qualify expectations: approvals, amounts, rates, and terms depend on the applicant and lender."
+    },
+    {
+      "objection": "How are you different from Hearth or direct lenders like GoodLeap, Synchrony, or Service Finance?",
+      "responseStrategy": "Contrast marketplace/no dealer-fee/subscription model with direct-lender/dealer-fee/specialized-loan models. Acknowledge tradeoffs: Enhancify avoids dealer fees but does not control lender terms or fund contractors directly."
+    },
+    {
+      "objection": "I am too busy to set this up.",
+      "responseStrategy": "Tie implementation to their stated lost-job math, then recommend the plan level that matches support need, usually Professional Growth or Concierge if adoption risk is the issue."
+    }
+  ],
+  "competitors": [
+    {
+      "name": "Direct lenders such as GoodLeap, Synchrony, Service Finance",
+      "positioningNote": "They can offer specialized loan products, rate sheets, buy-downs, and often contractor-direct funding, but commonly involve dealer fees, business requirements, and stricter credit boxes."
+    },
+    {
+      "name": "Hearth and other contractor financing marketplaces",
+      "positioningNote": "Compare on pricing, lender network, support, commissions, contractor portal, marketing tools, and customer experience without overclaiming unsupported superiority."
+    },
+    {
+      "name": "Status quo cash/check/credit card only",
+      "positioningNote": "The cost is lost jobs, reduced scope, delayed projects, and weaker marketing conversion when homeowners need payment flexibility."
+    }
+  ],
+  "voice": {
+    "tone": "sharp, enthusiastic, expert, direct, contractor-fluent, practical",
+    "avoid": [
+      "feature dumping",
+      "enterprise discovery bloat",
+      "unsupported guarantees",
+      "lender-like claims",
+      "vague positivity",
+      "talking more than listening"
+    ],
+    "phoneStyle": [
+      "Short sentences.",
+      "Ask one question at a time.",
+      "Mirror the contractor's cadence.",
+      "Use simple contractor language rather than fintech jargon.",
+      "Sound confident enough to ask for the business clearly."
+    ]
+  },
+  "sourceMetadata": {
+    "sourcePolicy": "Summarized structured facts only; no large raw script excerpts stored in repo.",
+    "reviewedAt": "2026-05-06",
+    "sources": [
+      {
+        "name": "MASTER - Sales Scripts Guide.md",
+        "topics": [
+          "Opening",
+          "Contractor A discovery",
+          "Contractor B discovery",
+          "Solution structure",
+          "Close language"
+        ]
+      },
+      {
+        "name": "Module 1_ The Problem We Solve and Why We Exist.pdf",
+        "topics": [
+          "Home improvement financing market",
+          "Dealer-fee model",
+          "Why Enhancify exists"
+        ]
+      },
+      {
+        "name": "Module 2_ The Product.pdf",
+        "topics": [
+          "Product definition",
+          "Loan products",
+          "Soft vs hard pulls",
+          "Contractor and applicant experience",
+          "Partnership plans"
+        ]
+      },
+      {
+        "name": "Module 3_ Customer Avatar.pdf",
+        "topics": [
+          "Customer avatar",
+          "Contractor A/B symptoms",
+          "Poor-fit segments",
+          "Best-fit job sizes and scheduling windows"
+        ]
+      },
+      {
+        "name": "Module 4_ The Sales Process.pdf",
+        "topics": [
+          "Sales mindset",
+          "Problem diagnosis",
+          "Avoiding pitch-guy behavior"
+        ]
+      },
+      {
+        "name": "Module 5_ Openings Workshop.pdf",
+        "topics": [
+          "Opening principles",
+          "Tonality",
+          "First 30-60 seconds"
+        ]
+      },
+      {
+        "name": "Module 6_ Discovery Workshop.pdf",
+        "topics": [
+          "Current situation",
+          "Desired situation",
+          "Discovery principles",
+          "Disqualification"
+        ]
+      },
+      {
+        "name": "Module 7_ Solution.pdf",
+        "topics": [
+          "Solution after discovery",
+          "Feature-dumping risks",
+          "Contextual solutioning"
+        ]
+      },
+      {
+        "name": "Module 8_ The Close.pdf",
+        "topics": [
+          "Asking for the close",
+          "Handling no",
+          "Looping",
+          "Procedural close steps"
+        ]
+      },
+      {
+        "name": "Qualified Opportunity Checklist.md",
+        "topics": [
+          "Qualification checklist",
+          "Pain awareness",
+          "Urgency",
+          "Affordability"
+        ]
+      },
+      {
+        "name": "Setting Right Expectations of the Product.md",
+        "topics": [
+          "Compliance guardrails",
+          "Funding timelines",
+          "Applicant receives funds",
+          "0% credit card positioning",
+          "Realistic loan expectations"
+        ]
+      },
+      {
+        "name": "Eligible Sales Loops with CS Code.md",
+        "topics": [
+          "Approved sales loops",
+          "Promotions",
+          "CS code requirements"
+        ]
+      },
+      {
+        "name": "Transition to Client Success Procedure.md",
+        "topics": [
+          "Pre-close expectation setting",
+          "Guarantee confirmation",
+          "Payment and handoff requirements"
+        ]
+      },
+      {
+        "name": "enhancify.com homepage and contractor-partnership page",
+        "topics": [
+          "Public positioning",
+          "Pricing",
+          "Proof points",
+          "Plan details",
+          "Legal disclosures"
+        ]
+      }
+    ]
+  }
+}

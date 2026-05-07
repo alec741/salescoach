@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "report_artifacts_storage_path_idx" ON "report_artifacts" USING btree ("storage_path");

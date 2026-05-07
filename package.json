@@ -1,0 +1,67 @@
+{
+    "name": "decoded-coach",
+    "version": "0.1.0",
+    "private": true,
+    "description": "Configurable Decoded methodology coaching profile generator.",
+    "type": "module",
+    "scripts": {
+        "dev": "next dev",
+        "build": "next build",
+        "start": "next start",
+        "lint": "eslint . --max-warnings=0",
+        "typecheck": "tsc --noEmit",
+        "preflight": "node scripts/preflight.mjs",
+        "test:smoke": "node scripts/smoke-routes.mjs",
+        "db:generate": "drizzle-kit generate",
+        "db:migrate": "drizzle-kit migrate",
+        "db:studio": "drizzle-kit studio",
+        "db:seed:sales-reps": "tsx scripts/db/seed-sales-reps.ts",
+        "db:import:scorecards": "tsx scripts/db/import-scorecards.ts",
+        "db:import:reports": "tsx scripts/db/import-report-artifacts.ts",
+        "db:summarize": "tsx scripts/db/generate-summaries.ts",
+        "profiles:list": "node scripts/profile-tool.mjs list",
+        "profiles:validate": "node scripts/profile-tool.mjs validate",
+        "prompt:render": "node scripts/profile-tool.mjs render",
+        "close:calls:export": "node scripts/close-export-calls.mjs",
+        "close:check": "node scripts/close-export-calls.mjs --dry-run --max 1",
+        "close:auth:check": "node scripts/close-export-calls.mjs --check-auth",
+        "coach:hourly": "node scripts/coach/run-hourly.mjs",
+        "coach:hourly:force": "node scripts/coach/run-hourly.mjs --force",
+        "coach:daily": "node scripts/coach/run-daily-summary.mjs",
+        "reports:pdf": "python scripts/reports/generate_pdfs.py",
+        "reports:period:prepare": "node scripts/reports/prepare-period-report.mjs",
+        "coach:schedule:install": "powershell -ExecutionPolicy Bypass -File scripts/coach/install-scheduled-tasks.ps1",
+        "coach:schedule:remove": "powershell -ExecutionPolicy Bypass -File scripts/coach/remove-scheduled-tasks.ps1",
+        "coach:interactive": "node scripts/coach/interactive-review.mjs"
+    },
+    "dependencies": {
+        "@neondatabase/auth": "^0.3.0-beta",
+        "@neondatabase/serverless": "^1.1.0",
+        "drizzle-orm": "^0.45.2",
+        "lucide-react": "^0.468.0",
+        "next": "^16.2.5",
+        "react": "^19.2.1",
+        "react-dom": "^19.2.1"
+    },
+    "devDependencies": {
+        "@axe-core/playwright": "^4.11.3",
+        "@types/node": "^22.10.2",
+        "@types/react": "^19.0.2",
+        "@types/react-dom": "^19.0.2",
+        "drizzle-kit": "^0.31.8",
+        "eslint": "^9.39.4",
+        "eslint-config-next": "^16.2.6",
+        "playwright": "^1.59.1",
+        "tsx": "^4.19.2",
+        "typescript": "^5.7.2"
+    },
+    "engines": {
+        "node": ">=20"
+    },
+    "overrides": {
+        "postcss": "8.5.10",
+        "@esbuild-kit/core-utils": {
+            "esbuild": "0.25.12"
+        }
+    }
+}

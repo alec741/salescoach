@@ -1,0 +1,54 @@
+{
+  "required": [
+    "id",
+    "companyName",
+    "positioning",
+    "icp",
+    "offers",
+    "qualification",
+    "voice"
+  ],
+  "enhancedProfileFields": [
+    "salesMotion",
+    "callFlow",
+    "qualificationSegments",
+    "commercialModel",
+    "complianceGuardrails",
+    "sourceMetadata"
+  ],
+  "fields": {
+    "id": "Stable lowercase identifier used by config/default.json and CLI tools.",
+    "companyName": "Customer-facing company name.",
+    "positioning": {
+      "oneLiner": "Plain-English description of what the company does.",
+      "primaryOutcome": "Business outcome customers buy.",
+      "category": "Market category or buying frame.",
+      "differentiators": "Specific reasons this company is meaningfully different."
+    },
+    "icp": {
+      "bestFit": "Traits of high-fit accounts and buyers.",
+      "poorFit": "Traits that should reduce confidence or trigger disqualification.",
+      "buyerPersonas": "Roles, priorities, pains, and objections by persona.",
+      "triggerEvents": "Events that create urgency."
+    },
+    "offers": "Products or services the coach is allowed to recommend.",
+    "qualification": "Fit scoring and discovery criteria.",
+    "salesMotion": {
+      "leadSource": "Lead temperature and source context.",
+      "primaryChannel": "Primary selling medium.",
+      "averageContractValue": "Typical contract value and payment model.",
+      "targetClosePattern": "Expected cycle and close motion.",
+      "callTimeboxMinutes": "Target call length for coaching.",
+      "coachBias": "Behavioral bias the coach should optimize for."
+    },
+    "callFlow": "Time-boxed live-call stages and branch rules.",
+    "qualificationSegments": "Segment-specific diagnosis logic, especially Contractor A, Contractor B, and poor-fit profiles.",
+    "commercialModel": "Plans, pricing, guarantees, commissions, promotions, and close requirements.",
+    "complianceGuardrails": "Claims that must be included, avoided, or qualified.",
+    "proof": "Case studies, metrics, testimonials, or claims the coach can reference.",
+    "objections": "Known objections and approved response strategy.",
+    "competitors": "Alternatives and positioning notes.",
+    "sourceMetadata": "Summarized source references by document and topic. Avoid large raw excerpts.",
+    "voice": "Company-specific communication style."
+  }
+}
