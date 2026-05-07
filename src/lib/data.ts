@@ -30,6 +30,14 @@ function formatTrendLabel(value: string | Date) {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(value));
 }
 
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function slug(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
 function buildScoreTrend(summaryRows: Array<{ periodEnd: string | Date; averageScore: unknown }>, fallbackScore: number) {
   const byDate = new Map<string, number[]>();
   for (const summary of summaryRows) {
@@ -173,17 +181,27 @@ export async function getDashboardData(options: {
 
     const db = getDb();
     const allowedRepIds = await getRepIdsForUser(currentUser);
-    const scopedRepIds =
-      options.repId && (currentUser.role === "admin" || allowedRepIds.includes(options.repId)) ? [options.repId] : allowedRepIds;
+    const allowedUuidRepIds = allowedRepIds.filter(isUuid);
+
+    if (!allowedUuidRepIds.length) {
+      return getMockDashboardData(currentUser.role, options.repId);
+    }
+
+    const allowedRepRows = await db
+      .select()
+      .from(appUsers)
+      .where(and(eq(appUsers.role, "rep"), inArray(appUsers.id, allowedUuidRepIds)));
+
+    const repRows = options.repId
+      ? allowedRepRows.filter(
+          (rep) => rep.id === options.repId || slug(rep.displayName) === options.repId || rep.closeUserId === options.repId
+        )
+      : allowedRepRows;
+    const scopedRepIds = repRows.map((rep) => rep.id);
 
     if (!scopedRepIds.length) {
       return { ...getMockDashboardData(currentUser.role), currentUser, reps: [], calls: [], summaries: [], actions: [] };
     }
-
-    const repRows = await db
-      .select()
-      .from(appUsers)
-      .where(and(eq(appUsers.role, "rep"), inArray(appUsers.id, scopedRepIds)));
 
     const scoreRows = await db
       .select({
