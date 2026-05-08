@@ -10,16 +10,20 @@ This repo uses a local `.env` file for on-demand tools that need secrets. The fi
 Copy-Item .env.example .env
 ```
 
-2. Edit `.env` and paste the rotated Close API key:
+2. Edit `.env` and paste the app, database, and Close settings:
 
 ```dotenv
+DATABASE_URL=postgresql://...
+NEON_AUTH_BASE_URL=https://...
+NEON_AUTH_COOKIE_SECRET=generate_a_random_secret_at_least_32_characters
 CLOSE_API_KEY=your_rotated_close_key_here
 ```
 
-3. Add the model provider for automated grading when you are ready to run the full coaching backfill:
+3. Add the model provider for automated grading and summaries when you are ready to run the full coaching backfill:
 
 ```dotenv
 COACH_GRADER_PROVIDER=openrouter
+COACH_SUMMARY_PROVIDER=openrouter
 OPENROUTER_API_KEY=your_openrouter_key_here
 OPENROUTER_MODEL=anthropic/claude-sonnet-4.5
 OPENROUTER_SUMMARY_MODEL=anthropic/claude-sonnet-4.5
@@ -95,7 +99,31 @@ node scripts/close-export-calls.mjs --since 2026-05-01 --max 100 --out data/clos
 
 Shell environment variables still take precedence over `.env`, so you can temporarily override the key without editing the file.
 
-If you deploy to Vercel, copy the same variables into the Vercel project settings. `CRON_SECRET` specifically protects `/api/cron/*` routes. Production scheduling is handled by `.github/workflows/coaching-jobs.yml`; set matching GitHub repository secrets for `APP_BASE_URL` and `CRON_SECRET` before enabling scheduled runs.
+If you deploy to Vercel, copy the same runtime variables into the Vercel project settings. `CRON_SECRET` specifically protects `/api/cron/*` routes. Production scheduling is handled by `.github/workflows/coaching-jobs.yml`; set matching GitHub repository secrets for `APP_BASE_URL` and `CRON_SECRET` before enabling scheduled runs.
+
+Production Vercel variables:
+
+- `DATABASE_URL`
+- `NEON_AUTH_BASE_URL`
+- `NEON_AUTH_COOKIE_SECRET`
+- `CLOSE_API_KEY`
+- `CRON_SECRET`
+- `COACH_GRADER_PROVIDER`
+- `COACH_SUMMARY_PROVIDER`
+- `COACH_TIMEZONE`
+- `OPENROUTER_API_KEY`
+- `OPENROUTER_MODEL`
+- `OPENROUTER_SUMMARY_MODEL`
+- `OPENROUTER_MAX_TOKENS`
+- `OPENROUTER_SUMMARY_MAX_TOKENS`
+- `SLACK_BOT_TOKEN`
+- `SLACK_MANAGER_CHANNEL_ID`
+- `SLACK_REP_TARGETS_JSON`, if sending rep-specific summaries
+
+GitHub Actions repository secrets:
+
+- `APP_BASE_URL`
+- `CRON_SECRET`
 
 Run the 30-day OpenRouter backfill with:
 

@@ -5,13 +5,12 @@ const requiredForProduction = [
   "DATABASE_URL",
   "NEON_AUTH_BASE_URL",
   "NEON_AUTH_COOKIE_SECRET",
-  "OPENAI_API_KEY",
-  "OPENAI_MODEL",
   "SLACK_MANAGER_CHANNEL_ID"
 ];
 
 const requiredAnyForProduction = [
-  ["SLACK_BOT_TOKEN", "SLACK_ACCESS_TOKEN"]
+  ["SLACK_BOT_TOKEN", "SLACK_ACCESS_TOKEN"],
+  ["OPENROUTER_API_KEY", "OPENAI_API_KEY"]
 ];
 
 const routes = ["/manager", "/rep", "/rep/calls", "/rep/summaries", "/manager/reports", "/settings/users"];

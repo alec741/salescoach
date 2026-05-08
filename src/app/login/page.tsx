@@ -1,10 +1,12 @@
-import { AlertCircle, CheckCircle2, LockKeyhole } from "lucide-react";
+import { LockKeyhole, ShieldCheck } from "lucide-react";
 import { isNeonAuthConfigured } from "@/lib/auth/server";
 import { LoginActions } from "@/components/login-actions";
 
 export const dynamic = "force-dynamic";
 
 export default function LoginPage() {
+  const showSetupNotice = !isNeonAuthConfigured;
+
   return (
     <main className="login-shell">
       <section className="card login-card">
@@ -14,40 +16,35 @@ export default function LoginPage() {
               <span className="brand-mark">DC</span>
               <span>Decoded Coach</span>
             </div>
-            <h1 style={{ marginTop: 36 }}>Sign in to your coaching control center</h1>
+            <h1 style={{ marginTop: 36 }}>Sign in to Decoded Coach</h1>
             <p className="login-support">
-              Neon Auth verifies identity. Decoded Coach maps that identity to rep, manager, or admin access in Postgres.
+              Access your coaching dashboard, call reviews, and manager action queues from one secure workspace.
             </p>
           </div>
           <div className="login-boundary">
-            <span><LockKeyhole size={16} /> V1 security boundary</span>
+            <span><LockKeyhole size={16} /> Protected coaching workspace</span>
             <p>Dashboards expose scores, summaries, metadata, and coaching actions. Full transcripts are not shown.</p>
           </div>
         </div>
         <div className="login-auth">
-          <div className="eyebrow">Sign in</div>
-          <h2 style={{ marginTop: 8 }}>Continue with OAuth</h2>
-          <div className="auth-state-list">
-            <span className={isNeonAuthConfigured ? "check-item" : "check-item warn"}>
-              {isNeonAuthConfigured ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
-              {isNeonAuthConfigured ? "Neon Auth configured" : "Local OAuth configuration missing"}
-            </span>
-            <span className="check-item">
-              <CheckCircle2 size={14} />
-              Access is granted after app role mapping
-            </span>
-          </div>
+          <div className="eyebrow">Secure sign in</div>
+          <h2 style={{ marginTop: 8 }}>Continue to your workspace</h2>
+          <p className="muted login-auth-copy">
+            Use your company Google account. Access is limited to mapped reps, managers, and admins.
+          </p>
           {isNeonAuthConfigured ? (
             <div style={{ marginTop: 20, display: "grid", gap: 14 }}>
               <LoginActions />
-              <p className="muted">Google OAuth must be enabled in the Neon Auth console. Unmapped users land on access pending.</p>
+              <div className="login-access-note">
+                <ShieldCheck size={16} />
+                <span>Unmapped users are held on access pending until an admin assigns a role.</span>
+              </div>
             </div>
           ) : (
-            <div className="action-item" style={{ marginTop: 20 }}>
-              <strong>OAuth is required for dashboard access.</strong>
+            <div className="setup-notice" style={{ marginTop: 20 }} role={showSetupNotice ? "status" : undefined}>
+              <strong>Authentication setup is incomplete.</strong>
               <p className="muted" style={{ marginTop: 8 }}>
-                Set `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET`, and `DATABASE_URL` to connect the dashboards to mapped
-                Postgres users and coaching data.
+                Add `NEON_AUTH_BASE_URL` and `NEON_AUTH_COOKIE_SECRET` to enable Google sign in.
               </p>
             </div>
           )}

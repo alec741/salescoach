@@ -799,6 +799,8 @@ th {
 .login-auth {
   padding: 42px;
   background: var(--surface);
+  display: grid;
+  align-content: center;
 }
 
 .call-detail {
@@ -1612,6 +1614,7 @@ th {
 .login-support {
   margin-top: 14px;
   color: #eef4ef;
+  max-width: 390px;
 }
 
 .login-boundary {
@@ -1632,6 +1635,42 @@ th {
 .login-boundary p {
   margin-top: 8px;
   color: #dce6e1;
+}
+
+.login-auth-copy {
+  margin-top: 10px;
+  max-width: 390px;
+}
+
+.login-access-note,
+.setup-notice {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.login-access-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 11px 12px;
+}
+
+.login-access-note svg {
+  flex: 0 0 auto;
+  color: var(--teal);
+  margin-top: 1px;
+}
+
+.setup-notice {
+  padding: 13px;
+  border-left: 4px solid var(--amber);
+}
+
+.setup-notice strong {
+  color: var(--ink);
 }
 
 .auth-state-list {
