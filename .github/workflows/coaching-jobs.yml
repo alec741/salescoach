@@ -1,0 +1,124 @@
+name: Coaching jobs
+
+on:
+  schedule:
+    - cron: "*/30 * * * 1-5"
+    - cron: "30 23 * * 1-5"
+    - cron: "45 23 * * 5"
+    - cron: "50 23 28-31 * *"
+    - cron: "55 23 28-31 3,6,9,12 *"
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "Job to run"
+        required: true
+        default: "grading"
+        type: choice
+        options:
+          - grading
+          - daily
+          - weekly
+          - monthly
+          - quarterly
+          - all
+      force:
+        description: "Force gated summary jobs to run"
+        required: false
+        default: false
+        type: boolean
+      skipSlack:
+        description: "Generate without Slack delivery"
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: coaching-jobs
+  cancel-in-progress: false
+
+jobs:
+  run-coaching-job:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      EVENT_SCHEDULE: ${{ github.event.schedule }}
+      REQUESTED_JOB: ${{ github.event.inputs.job || '' }}
+      FORCE: ${{ github.event.inputs.force || 'false' }}
+      SKIP_SLACK: ${{ github.event.inputs.skipSlack || 'false' }}
+    steps:
+      - name: Call protected coaching endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${APP_BASE_URL}" || -z "${CRON_SECRET}" ]]; then
+            echo "APP_BASE_URL and CRON_SECRET repository secrets are required." >&2
+            exit 1
+          fi
+
+          base_url="${APP_BASE_URL%/}"
+
+          job_from_schedule() {
+            case "${EVENT_SCHEDULE}" in
+              "*/30 * * * 1-5") echo "grading" ;;
+              "30 23 * * 1-5") echo "daily" ;;
+              "45 23 * * 5") echo "weekly" ;;
+              "50 23 28-31 * *") echo "monthly" ;;
+              "55 23 28-31 3,6,9,12 *") echo "quarterly" ;;
+              *) echo "grading" ;;
+            esac
+          }
+
+          endpoint_for_job() {
+            case "$1" in
+              grading) echo "/api/cron/grading" ;;
+              daily) echo "/api/cron/summaries/daily" ;;
+              weekly) echo "/api/cron/summaries/weekly" ;;
+              monthly) echo "/api/cron/summaries/monthly" ;;
+              quarterly) echo "/api/cron/summaries/quarterly" ;;
+              *) echo "Unknown job: $1" >&2; exit 1 ;;
+            esac
+          }
+
+          call_job() {
+            local job="$1"
+            local endpoint
+            local query=()
+            endpoint="$(endpoint_for_job "$job")"
+
+            if [[ "${FORCE}" == "true" && "$job" != "grading" ]]; then
+              query+=("force=1")
+            fi
+
+            if [[ "${SKIP_SLACK}" == "true" && "$job" != "grading" ]]; then
+              query+=("skipSlack=1")
+            fi
+
+            local url="${base_url}${endpoint}"
+            if (( ${#query[@]} > 0 )); then
+              local joined
+              joined="$(IFS='&'; echo "${query[*]}")"
+              url="${url}?${joined}"
+            fi
+
+            echo "Calling ${job}: ${url}"
+            curl --fail --show-error --silent --max-time 900 --retry 2 --retry-delay 10 \
+              -H "Authorization: Bearer ${CRON_SECRET}" \
+              "${url}"
+            echo
+          }
+
+          selected_job="${REQUESTED_JOB:-}"
+          if [[ -z "${selected_job}" ]]; then
+            selected_job="$(job_from_schedule)"
+          fi
+
+          if [[ "${selected_job}" == "all" ]]; then
+            for job in grading daily weekly monthly quarterly; do
+              call_job "$job"
+            done
+          else
+            call_job "${selected_job}"
+          fi

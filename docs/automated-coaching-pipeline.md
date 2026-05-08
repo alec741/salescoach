@@ -86,7 +86,14 @@ Hosted summary routes keep the local gating behavior:
 - Monthly summary runs only on the last business day of the month unless `force=1`
 - Quarterly summary runs only on the last business day of March, June, September, or December unless `force=1`
 
-`vercel.json` does not register these schedules by default so the app can deploy on Vercel projects without paid cron capacity. After the project plan supports the required cadence, add UTC cron schedules for these routes:
+`vercel.json` does not register these schedules by default so the app can deploy on Vercel projects without paid cron capacity. GitHub Actions owns the production schedule in `.github/workflows/coaching-jobs.yml` and calls the deployed cron routes with `Authorization: Bearer <CRON_SECRET>`.
+
+Configure these GitHub repository secrets:
+
+- `APP_BASE_URL`: deployed app origin, for example `https://your-app.vercel.app`
+- `CRON_SECRET`: same value configured in Vercel for the protected cron routes
+
+The GitHub Actions workflow uses these UTC schedules:
 
 - Grading: `*/30 * * * 1-5`
 - Daily summary: `30 23 * * 1-5`
@@ -96,8 +103,8 @@ Hosted summary routes keep the local gating behavior:
 
 Notes:
 
-- Vercel cron schedules are always UTC.
-- The 30-minute grading schedule requires a Vercel plan that supports more than once-daily cron execution.
+- GitHub Actions schedules are always UTC.
+- Scheduled workflow timing is not exact; GitHub may delay execution under load.
 - The monthly and quarterly schedules intentionally run on multiple candidate dates and rely on the route-level business-day checks to decide whether to actually generate the summary.
 
 Send rep summaries to their mapped private Slack targets without posting:

@@ -95,7 +95,7 @@ node scripts/close-export-calls.mjs --since 2026-05-01 --max 100 --out data/clos
 
 Shell environment variables still take precedence over `.env`, so you can temporarily override the key without editing the file.
 
-If you deploy to Vercel, copy the same variables into the Vercel project settings. `CRON_SECRET` specifically protects `/api/cron/*` routes and should be set in production before enabling the cron schedules from `vercel.json`.
+If you deploy to Vercel, copy the same variables into the Vercel project settings. `CRON_SECRET` specifically protects `/api/cron/*` routes. Production scheduling is handled by `.github/workflows/coaching-jobs.yml`; set matching GitHub repository secrets for `APP_BASE_URL` and `CRON_SECRET` before enabling scheduled runs.
 
 Run the 30-day OpenRouter backfill with:
 
