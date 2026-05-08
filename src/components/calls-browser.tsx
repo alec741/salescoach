@@ -3,8 +3,9 @@
 import { useMemo, useState, useTransition } from "react";
 import { CalendarDays, CheckCircle2, Copy, Filter, Search, SlidersHorizontal, Target, X } from "lucide-react";
 import { markCallReviewedAction } from "@/app/actions";
-import { formatDate, formatScore, titleCaseDimension } from "@/lib/format";
-import { rubricKeys, type CallRow, type RubricKey } from "@/lib/types";
+import { FeedbackPanel } from "./feedback-panel";
+import { formatCurrency, formatDate, formatScore, outcomeLabel, titleCaseDimension } from "@/lib/format";
+import { rubricKeys, type CallRow, type RubricKey, type UserRole } from "@/lib/types";
 
 type ScoreFilter = "all" | "below6" | "sixToSeven" | "above7";
 type ReviewState = "all" | "reviewed" | "open";
@@ -21,7 +22,34 @@ function scoreMatches(score: number, filter: ScoreFilter) {
   return true;
 }
 
-export function CallsBrowser({ calls }: { calls: CallRow[] }) {
+function readableValue(value: unknown): string {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.filter(Boolean).map(readableValue).join(" ");
+  if (typeof value === "object") {
+    return Object.entries(value as Record<string, unknown>)
+      .filter(([, entryValue]) => Boolean(entryValue))
+      .map(([key, entryValue]) => `${key.replace(/_/g, " ")}: ${readableValue(entryValue)}`)
+      .join(" ");
+  }
+  return String(value);
+}
+
+export function CallsBrowser({
+  calls,
+  currentUserId,
+  currentUserName,
+  currentUserRole,
+  feedbackStorageReady,
+  feedbackStorageMessage
+}: {
+  calls: CallRow[];
+  currentUserId: string;
+  currentUserName: string;
+  currentUserRole: UserRole;
+  feedbackStorageReady: boolean;
+  feedbackStorageMessage?: string;
+}) {
   const [isPending, startTransition] = useTransition();
   const [query, setQuery] = useState("");
   const [riskOnly, setRiskOnly] = useState(false);
@@ -44,6 +72,11 @@ export function CallsBrowser({ calls }: { calls: CallRow[] }) {
         !normalized ||
         call.repName.toLowerCase().includes(normalized) ||
         call.closeCallId.toLowerCase().includes(normalized) ||
+        (call.callType || "").toLowerCase().includes(normalized) ||
+        (call.outcomeType || "").toLowerCase().includes(normalized) ||
+        (call.leadSegment || "").toLowerCase().includes(normalized) ||
+        (call.crmOutcome?.statusLabel || "").toLowerCase().includes(normalized) ||
+        (call.crmOutcome?.pipelineName || "").toLowerCase().includes(normalized) ||
         call.primaryFocus.toLowerCase().includes(normalized) ||
         call.nextCallFocus.toLowerCase().includes(normalized) ||
         call.primaryFocusDimension.toLowerCase().includes(normalized);
@@ -67,6 +100,9 @@ export function CallsBrowser({ calls }: { calls: CallRow[] }) {
   ].filter(Boolean);
 
   function callReason(call: CallRow) {
+    if (call.crmOutcome?.noDecision) return "No decision pattern";
+    if (call.crmOutcome?.bucket === "lost") return "Loss review";
+    if (call.crmOutcome?.bucket === "won") return "Closed won";
     if (call.complianceFlags.length >= 2) return "Compliance risk";
     if (call.overallScore < 6) return "Regression evidence";
     if (call.primaryFocusDimension === "quantification") return "Target practice";
@@ -74,7 +110,12 @@ export function CallsBrowser({ calls }: { calls: CallRow[] }) {
   }
 
   async function copyCallId(call: CallRow) {
-    await navigator.clipboard?.writeText(call.closeCallId);
+    try {
+      await navigator.clipboard?.writeText(call.closeCallId);
+      setReviewMessage("Call ID copied.");
+    } catch {
+      setReviewMessage(`Copy blocked by browser permissions. Call ID: ${call.closeCallId}`);
+    }
   }
 
   function markReviewed(call: CallRow) {
@@ -89,7 +130,7 @@ export function CallsBrowser({ calls }: { calls: CallRow[] }) {
 
   return (
     <section className="call-workspace">
-      <div className="call-hero card">
+      <div className="call-hero card accent-report">
         <div>
           <div className="eyebrow">Evidence review</div>
           <h2>Find the call that explains the coaching focus</h2>
@@ -162,7 +203,7 @@ export function CallsBrowser({ calls }: { calls: CallRow[] }) {
         </div>
       ) : (
         <div className="call-review-grid">
-          <div className="card call-list-panel">
+          <div className="card call-list-panel accent-risk">
             <div className="panel-header compact-header">
               <div>
                 <div className="eyebrow">Review queue</div>
@@ -185,7 +226,7 @@ export function CallsBrowser({ calls }: { calls: CallRow[] }) {
                         {call.overallScore < 6 ? "Needs lift" : "On track"}
                       </span>
                     </span>
-                    <span className={call.complianceFlags.length ? "badge amber" : "badge"}>
+                    <span className={call.complianceFlags.length ? "badge risk" : "badge good"}>
                       {call.complianceFlags.length ? `${call.complianceFlags.length} flags` : "Clear"}
                     </span>
                   </span>
@@ -193,7 +234,16 @@ export function CallsBrowser({ calls }: { calls: CallRow[] }) {
                     {titleCaseDimension(call.primaryFocusDimension)}
                   </span>
                   <span className="reason-line">
-                    <span className={callReason(call) === "Recent win" ? "badge" : "badge amber"}>{callReason(call)}</span>
+                    <span className="badge amber">{outcomeLabel(call.outcomeType || "outcome pending")}</span>
+                    {call.crmOutcome?.statusLabel ? (
+                      <span className={call.crmOutcome.bucket === "won" ? "badge good" : call.crmOutcome.bucket === "lost" ? "badge risk" : "badge info"}>
+                        CRM {call.crmOutcome.statusLabel}
+                      </span>
+                    ) : null}
+                    <span className="muted">{(call.callType || "call type pending").replace(/_/g, " ")}</span>
+                  </span>
+                  <span className="reason-line">
+                    <span className={callReason(call) === "Recent win" ? "badge good" : callReason(call) === "Compliance risk" ? "badge risk" : "badge amber"}>{callReason(call)}</span>
                     <span className="muted">{call.nextCallFocus}</span>
                   </span>
                   <span className="call-card-footer">
@@ -209,7 +259,7 @@ export function CallsBrowser({ calls }: { calls: CallRow[] }) {
           </div>
 
           {selected ? (
-            <div className="card call-detail-panel sticky-detail">
+            <div className="card call-detail-panel sticky-detail accent-focus">
               <div className="panel-header">
                 <div>
                   <div className="eyebrow">Selected call</div>
@@ -240,17 +290,69 @@ export function CallsBrowser({ calls }: { calls: CallRow[] }) {
               </div>
 
               <div className="detail-section">
+                <div className="metric-label">Context</div>
+                <div className="check-list">
+                  <span className="check-item">Type - {(selected.callType || "unknown").replace(/_/g, " ")}</span>
+                  <span className="check-item">Outcome - {outcomeLabel(selected.outcomeType || "unknown")}</span>
+                  <span className="check-item">Segment - {selected.leadSegment || "unknown"}</span>
+                </div>
+                {selected.outcomeRationale ? <p className="muted">{selected.outcomeRationale}</p> : null}
+              </div>
+
+              {selected.crmOutcome ? (
+                <div className="detail-section">
+                  <div className="metric-label">CRM outcome</div>
+                  <div className="check-list">
+                    <span className="check-item">Pipeline - {selected.crmOutcome.pipelineName || "unknown"}</span>
+                    <span className="check-item">Status - {selected.crmOutcome.statusLabel || outcomeLabel(selected.crmOutcome.statusType)}</span>
+                    <span className="check-item">Value - {formatCurrency(selected.crmOutcome.value)}</span>
+                    <span className="check-item">Close date - {selected.crmOutcome.closeDate ? formatDate(selected.crmOutcome.closeDate) : "Open"}</span>
+                  </div>
+                  <p className="muted">
+                    {selected.crmOutcome.noDecision
+                      ? "This call was graded as a no-decision even though the CRM opportunity remains unresolved."
+                      : selected.crmOutcome.bucket === "won"
+                        ? "Opportunity moved to won in CRM."
+                        : selected.crmOutcome.bucket === "lost"
+                          ? "Opportunity moved to lost in CRM."
+                          : "Opportunity is still open in CRM."}
+                  </p>
+                </div>
+              ) : null}
+
+              <div className="detail-section">
                 <div className="metric-label">Next-call behavior</div>
                 <h3>{selected.nextCallFocus}</h3>
                 <p className="muted">{selected.focusRationale}</p>
                 <p className="muted">{selected.summary}</p>
               </div>
 
+              {selected.coachableMoment ? (
+                <div className="detail-section">
+                  <div className="metric-label">Coachable moment</div>
+                  <p>{readableValue(selected.coachableMoment)}</p>
+                </div>
+              ) : null}
+
+              {selected.managerAction ? (
+                <div className="detail-section">
+                  <div className="metric-label">Manager action</div>
+                  <p>{readableValue(selected.managerAction)}</p>
+                </div>
+              ) : null}
+
+              {selected.successPattern ? (
+                <div className="detail-section">
+                  <div className="metric-label">Repeatable strength</div>
+                  <p>{readableValue(selected.successPattern)}</p>
+                </div>
+              ) : null}
+
               <div className="detail-section">
                 <div className="metric-label">Practice prompt</div>
                 <p>
-                  &quot;Before I show you the options, how many of your last 10 jobs stalled because the customer needed a
-                  better payment path?&quot;
+                  {selected.repPracticeDrill ||
+                    "\"Before I show you the options, how many of your last 10 jobs stalled because the customer needed a better payment path?\""}
                 </p>
               </div>
 
@@ -263,6 +365,22 @@ export function CallsBrowser({ calls }: { calls: CallRow[] }) {
                     </span>
                   ))}
                 </div>
+              </div>
+
+              <div className="detail-section">
+                <FeedbackPanel
+                  entityType="scorecard"
+                  entityId={selected.scorecardId}
+                  repId={selected.repId}
+                  currentUserId={currentUserId}
+                  currentUserName={currentUserName}
+                  currentUserRole={currentUserRole}
+                  feedback={selected.feedback}
+                  feedbackStorageReady={feedbackStorageReady}
+                  feedbackStorageMessage={feedbackStorageMessage}
+                  title="Scorecard feedback"
+                  subtitle="Rate the usefulness of this scorecard and note what should change in future coaching output."
+                />
               </div>
 
               <div className="detail-actions">

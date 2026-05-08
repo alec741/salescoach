@@ -23,7 +23,7 @@ export function UsersWorkspace({ data }: { data: DashboardData }) {
 
   return (
     <section className="users-workspace">
-      <div className="card access-hero">
+      <div className="card access-hero accent-admin">
         <div>
           <div className="eyebrow">Access control</div>
           <h2>Map identity, Close ownership, and manager visibility</h2>
@@ -45,7 +45,7 @@ export function UsersWorkspace({ data }: { data: DashboardData }) {
       </div>
 
       <div className="users-grid">
-        <div className="card panel">
+        <div className="card panel accent-admin">
           <div className="panel-header">
             <div>
               <div className="eyebrow">Users</div>
@@ -74,13 +74,13 @@ export function UsersWorkspace({ data }: { data: DashboardData }) {
                   <strong>{rep.name}</strong>
                   <small>{rep.email}</small>
                 </span>
-                <span className="badge">rep</span>
-                <span className={state === "Mapped" ? "badge" : "badge amber"}>{state}</span>
+                <span className="badge admin">rep</span>
+                <span className={state === "Mapped" ? "badge good" : "badge amber"}>{state}</span>
                 <span className="muted">{rep.calls} calls</span>
               </button>
             );})}
             {!filteredReps.length ? (
-              <div className="action-item">
+              <div className="action-item state-risk">
                 <strong>No users match these filters</strong>
                 <p className="muted" style={{ marginTop: 6 }}>Clear search or mapping state filters to restore the queue.</p>
               </div>
@@ -124,7 +124,7 @@ function UserDetail({ rep, currentUserId }: { rep: RepPerformance; currentUserId
   }
 
   return (
-    <div className="card panel">
+    <div className="card panel accent-admin">
       <div className="panel-header">
         <div>
           <div className="eyebrow">Selected user</div>

@@ -1,7 +1,10 @@
-import { and, eq, gte, lte } from "drizzle-orm";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { and, eq, gte, isNull, lte } from "drizzle-orm";
 import { getDb } from "../../src/db/client";
-import { appUsers, calls, callScorecards, coachingActionItems, coachingSummaries } from "../../src/db/schema";
+import { appUsers, calls, callScorecards, coachingActionItems, coachingSummaries, reportArtifacts } from "../../src/db/schema";
 import { rubricKeys, type PeriodType, type RubricKey } from "../../src/lib/types";
+import { writeCoachingSummary } from "../coach/summary-writer";
 
 const themes: Record<RubricKey, string> = {
   opening: "Set a cleaner opening agenda before discovery.",
@@ -51,7 +54,8 @@ function parseArgs() {
   const periodIndex = args.indexOf("--period");
   return {
     date: dateIndex >= 0 ? args[dateIndex + 1] : new Date().toISOString().slice(0, 10),
-    period: periodIndex >= 0 ? args[periodIndex + 1] : "daily"
+    period: periodIndex >= 0 ? args[periodIndex + 1] : "daily",
+    llm: args.includes("--llm") || process.env.COACH_SUMMARY_PROVIDER === "openrouter"
   };
 }
 
@@ -135,26 +139,291 @@ function periodRange(anchor: string, periodType: PeriodType) {
   return { periodStart: isoDate(start), periodEnd: isoDate(end) };
 }
 
+function previousPeriodRange(periodStart: string, periodEnd: string) {
+  const start = new Date(`${periodStart}T00:00:00.000Z`);
+  const end = new Date(`${periodEnd}T00:00:00.000Z`);
+  const days = Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1;
+  const previousEnd = addDays(start, -1);
+  const previousStart = addDays(previousEnd, -days + 1);
+  return { periodStart: isoDate(previousStart), periodEnd: isoDate(previousEnd) };
+}
+
 function selectedPeriods(period: string): PeriodType[] {
   if (period === "all") return ["daily", "weekly", "monthly", "quarterly"];
   if (["daily", "weekly", "monthly", "quarterly"].includes(period)) return [period as PeriodType];
   throw new Error(`Unsupported period: ${period}. Use daily, weekly, monthly, quarterly, or all.`);
 }
 
-async function main() {
-  const { date, period } = parseArgs();
+export type GenerateSummariesOptions = {
+  date?: string;
+  period?: string;
+  llm?: boolean;
+};
+
+export type GenerateSummariesResult = {
+  ok: true;
+  date: string;
+  period: string;
+  summaries: number;
+  artifacts: number;
+};
+
+type SummaryArtifactInput = {
+  reportType: "rep_summary" | "manager_summary";
+  periodType: PeriodType;
+  periodStart: string;
+  periodEnd: string;
+  repUserId?: string | null;
+  managerUserId?: string | null;
+  contentMarkdown: string;
+};
+
+async function upsertSummaryArtifact(input: SummaryArtifactInput) {
+  const db = getDb();
+  const conditions = [
+    eq(reportArtifacts.reportType, input.reportType),
+    eq(reportArtifacts.periodType, input.periodType),
+    eq(reportArtifacts.periodStart, input.periodStart),
+    eq(reportArtifacts.periodEnd, input.periodEnd),
+    input.repUserId ? eq(reportArtifacts.repUserId, input.repUserId) : isNull(reportArtifacts.repUserId),
+    input.managerUserId ? eq(reportArtifacts.managerUserId, input.managerUserId) : isNull(reportArtifacts.managerUserId)
+  ];
+
+  const values = {
+    reportType: input.reportType,
+    periodType: input.periodType,
+    periodStart: input.periodStart,
+    periodEnd: input.periodEnd,
+    repUserId: input.repUserId || null,
+    managerUserId: input.managerUserId || null,
+    storagePath: null,
+    contentMarkdown: input.contentMarkdown
+  };
+
+  const existing = await db
+    .select({ id: reportArtifacts.id })
+    .from(reportArtifacts)
+    .where(and(...conditions))
+    .limit(1);
+
+  if (existing[0]) {
+    await db.update(reportArtifacts).set(values).where(eq(reportArtifacts.id, existing[0].id));
+    return;
+  }
+
+  await db.insert(reportArtifacts).values(values);
+}
+
+function dimensionLines(scores: Record<RubricKey, number>) {
+  return rubricKeys.map((key) => `- ${key}: ${scores[key]}/10`).join("\n");
+}
+
+function buildRepSummaryMarkdown(input: {
+  titlePeriod: string;
+  repName: string;
+  periodStart: string;
+  periodEnd: string;
+  callsGraded: number;
+  averageScore: number;
+  dimensionAverages: Record<RubricKey, number>;
+  strongestDimension: RubricKey;
+  weakestScoreDimension: RubricKey;
+  focus: ReturnType<typeof chooseFocus>;
+}) {
+  return `# ${input.titlePeriod} Coaching Summary - ${input.repName}
+
+Period: ${input.periodStart} to ${input.periodEnd}
+Calls graded: ${input.callsGraded}
+Average score: ${input.averageScore}/10
+
+## Highest-Leverage Focus
+
+${input.focus.focus}
+
+## Why This Matters
+
+${input.focus.rationale}
+
+## Next-Call Behavior
+
+${input.focus.behavior}
+
+## Score Pattern
+
+Strongest dimension: ${input.strongestDimension}
+Lowest score dimension: ${input.weakestScoreDimension}
+
+${dimensionLines(input.dimensionAverages)}
+`;
+}
+
+function buildManagerSummaryMarkdown(input: {
+  titlePeriod: string;
+  periodStart: string;
+  periodEnd: string;
+  repSummaries: Array<{
+    repName: string;
+    callsGraded: number;
+    averageScore: number;
+    primaryFocus: string;
+    nextCallFocus: string;
+    weakestScoreDimension: RubricKey;
+    strongestDimension: RubricKey;
+  }>;
+}) {
+  const totalCalls = input.repSummaries.reduce((sum, rep) => sum + rep.callsGraded, 0);
+  const teamAverage = round1(average(input.repSummaries.map((rep) => rep.averageScore)));
+  const sorted = [...input.repSummaries].sort((a, b) => a.repName.localeCompare(b.repName));
+
+  return `# ${input.titlePeriod} Manager Coaching Summary
+
+Period: ${input.periodStart} to ${input.periodEnd}
+Reps reviewed: ${sorted.length}
+Calls graded: ${totalCalls}
+Team average score: ${teamAverage}/10
+
+## Manager Priorities
+
+${sorted.map((rep) => `### ${rep.repName}
+
+Calls graded: ${rep.callsGraded}
+Average score: ${rep.averageScore}/10
+Strength: ${rep.strongestDimension}
+Lowest score: ${rep.weakestScoreDimension}
+Primary coaching focus: ${rep.primaryFocus}
+Next manager coaching move: ${rep.nextCallFocus}
+`).join("\n")}`;
+}
+
+async function getPreviousRepContext(repId: string, periodType: PeriodType, periodStart: string, periodEnd: string) {
+  const db = getDb();
+  const previous = previousPeriodRange(periodStart, periodEnd);
+  const rows = await db
+    .select({
+      callsGraded: coachingSummaries.callsGraded,
+      averageScore: coachingSummaries.averageScore,
+      primaryFocusDimension: coachingSummaries.primaryFocusDimension,
+      primaryFocus: coachingSummaries.primaryFocus,
+      nextCallFocus: coachingSummaries.nextCallFocus,
+      focusRationale: coachingSummaries.focusRationale,
+      dimensionAveragesJson: coachingSummaries.dimensionAveragesJson
+    })
+    .from(coachingSummaries)
+    .where(
+      and(
+        eq(coachingSummaries.repUserId, repId),
+        eq(coachingSummaries.periodType, periodType),
+        eq(coachingSummaries.periodStart, previous.periodStart),
+        eq(coachingSummaries.periodEnd, previous.periodEnd)
+      )
+    )
+    .limit(1);
+
+  return rows[0]
+    ? {
+        period_start: previous.periodStart,
+        period_end: previous.periodEnd,
+        calls_graded: rows[0].callsGraded,
+        average_score: Number(rows[0].averageScore),
+        primary_focus_dimension: rows[0].primaryFocusDimension,
+        primary_focus: rows[0].primaryFocus,
+        next_call_focus: rows[0].nextCallFocus,
+        focus_rationale: rows[0].focusRationale,
+        dimension_averages: rows[0].dimensionAveragesJson
+      }
+    : null;
+}
+
+async function getPreviousManagerContext(periodType: PeriodType, periodStart: string, periodEnd: string) {
+  const db = getDb();
+  const previous = previousPeriodRange(periodStart, periodEnd);
+  const rows = await db
+    .select({
+      repName: appUsers.displayName,
+      callsGraded: coachingSummaries.callsGraded,
+      averageScore: coachingSummaries.averageScore,
+      primaryFocusDimension: coachingSummaries.primaryFocusDimension,
+      primaryFocus: coachingSummaries.primaryFocus,
+      dimensionAveragesJson: coachingSummaries.dimensionAveragesJson
+    })
+    .from(coachingSummaries)
+    .innerJoin(appUsers, eq(appUsers.id, coachingSummaries.repUserId))
+    .where(
+      and(
+        eq(coachingSummaries.periodType, periodType),
+        eq(coachingSummaries.periodStart, previous.periodStart),
+        eq(coachingSummaries.periodEnd, previous.periodEnd)
+      )
+    );
+
+  return {
+    period_start: previous.periodStart,
+    period_end: previous.periodEnd,
+    reps: rows.map((row) => ({
+      rep_name: row.repName,
+      calls_graded: row.callsGraded,
+      average_score: Number(row.averageScore),
+      primary_focus_dimension: row.primaryFocusDimension,
+      primary_focus: row.primaryFocus,
+      dimension_averages: row.dimensionAveragesJson
+    }))
+  };
+}
+
+export async function generateSummaries(options: GenerateSummariesOptions = {}): Promise<GenerateSummariesResult> {
+  const date = options.date || new Date().toISOString().slice(0, 10);
+  const period = options.period || "daily";
+  const llm = options.llm ?? process.env.COACH_SUMMARY_PROVIDER === "openrouter";
+  const minDurationSeconds = Number(process.env.COACH_SUMMARY_MIN_DURATION_SECONDS || 600);
   const db = getDb();
   const reps = await db.select().from(appUsers).where(eq(appUsers.role, "rep"));
+  const managers = await db.select().from(appUsers).where(eq(appUsers.role, "manager"));
   let summaries = 0;
+  let artifacts = 0;
 
   for (const periodType of selectedPeriods(period)) {
     const { periodStart, periodEnd } = periodRange(date, periodType);
     const since = new Date(`${periodStart}T00:00:00.000Z`);
     const until = new Date(`${periodEnd}T23:59:59.999Z`);
+    const titlePeriod = `${periodType[0].toUpperCase()}${periodType.slice(1)}`;
+    const managerRepSummaries = [];
+
+    await db
+      .delete(reportArtifacts)
+      .where(
+        and(
+          eq(reportArtifacts.periodType, periodType),
+          eq(reportArtifacts.periodStart, periodStart),
+          eq(reportArtifacts.periodEnd, periodEnd)
+        )
+      );
+    await db
+      .delete(coachingSummaries)
+      .where(
+        and(
+          eq(coachingSummaries.periodType, periodType),
+          eq(coachingSummaries.periodStart, periodStart),
+          eq(coachingSummaries.periodEnd, periodEnd)
+        )
+      );
+    if (periodType === "daily") {
+      await db
+        .delete(coachingActionItems)
+        .where(
+          and(
+            eq(coachingActionItems.sourcePeriodStart, periodStart),
+            eq(coachingActionItems.sourcePeriodEnd, periodEnd),
+            eq(coachingActionItems.status, "open")
+          )
+        );
+    }
 
     for (const rep of reps) {
       const rows = await db
         .select({
+          closeCallId: calls.closeCallId,
+          activityAt: calls.activityAt,
+          durationSeconds: calls.durationSeconds,
           overallScore: callScorecards.overallScore,
           opening: callScorecards.openingScore,
           qualification: callScorecards.qualificationScore,
@@ -163,11 +432,23 @@ async function main() {
           solutionToPain: callScorecards.solutionToPainScore,
           featureDumpControl: callScorecards.featureDumpControlScore,
           closeOrNextStep: callScorecards.closeOrNextStepScore,
-          compliance: callScorecards.complianceScore
+          compliance: callScorecards.complianceScore,
+          leadSegment: callScorecards.leadSegment,
+          topStrength: callScorecards.topStrength,
+          biggestCoachingOpportunity: callScorecards.biggestCoachingOpportunity,
+          nextCallFocus: callScorecards.nextCallFocus,
+          evidenceSummaryJson: callScorecards.evidenceSummaryJson
         })
         .from(callScorecards)
         .innerJoin(calls, eq(calls.id, callScorecards.callId))
-        .where(and(eq(calls.repUserId, rep.id), gte(calls.activityAt, since), lte(calls.activityAt, until)));
+        .where(
+          and(
+            eq(calls.repUserId, rep.id),
+            gte(calls.activityAt, since),
+            lte(calls.activityAt, until),
+            gte(calls.durationSeconds, minDurationSeconds)
+          )
+        );
 
       if (!rows.length) continue;
 
@@ -186,7 +467,50 @@ async function main() {
       const focus = chooseFocus(dimensionAverages);
       const averageScore = round1(average(rows.map((row) => Number(row.overallScore))));
       const nextCallFocus = focus.behavior;
-      const titlePeriod = `${periodType[0].toUpperCase()}${periodType.slice(1)}`;
+      let summaryMarkdown = buildRepSummaryMarkdown({
+        titlePeriod,
+        repName: rep.displayName,
+        periodStart,
+        periodEnd,
+        callsGraded: rows.length,
+        averageScore,
+        dimensionAverages,
+        strongestDimension,
+        weakestScoreDimension,
+        focus
+      });
+      let primaryFocus = focus.focus;
+      let primaryFocusDimension = focus.dimension;
+      let focusRationale = focus.rationale;
+      let effectiveNextCallFocus = nextCallFocus;
+
+      if (llm) {
+        const previousContext = await getPreviousRepContext(rep.id, periodType, periodStart, periodEnd);
+        console.log(`Generating LLM ${periodType} rep summary for ${rep.displayName} (${rows.length} calls)`);
+        const llmSummary = await writeCoachingSummary({
+          audience: "rep",
+          periodType,
+          periodStart,
+          periodEnd,
+          repName: rep.displayName,
+          aggregate: {
+            calls_graded: rows.length,
+            average_score: averageScore,
+            dimension_averages: dimensionAverages,
+            strongest_dimension: strongestDimension,
+            weakest_score_dimension: weakestScoreDimension,
+            deterministic_focus: focus.focus
+          },
+          previousContext,
+          scorecards: rows
+        });
+        summaryMarkdown = llmSummary.markdown;
+        primaryFocus = llmSummary.primary_focus || primaryFocus;
+        primaryFocusDimension = (llmSummary.primary_focus_dimension || primaryFocusDimension) as RubricKey;
+        focusRationale = llmSummary.focus_rationale || focusRationale;
+        effectiveNextCallFocus = llmSummary.next_call_focus || effectiveNextCallFocus;
+        console.log(`Generated LLM ${periodType} rep summary for ${rep.displayName}`);
+      }
 
       await db
         .insert(coachingSummaries)
@@ -201,11 +525,11 @@ async function main() {
           strongestDimension,
           weakestDimension: weakestScoreDimension,
           weakestScoreDimension,
-          primaryFocusDimension: focus.dimension,
-          focusRationale: focus.rationale,
-          primaryFocus: focus.focus,
-          nextCallFocus,
-          summaryMarkdown: `# ${titlePeriod} Coaching Summary - ${rep.displayName}\n\nPeriod: ${periodStart} to ${periodEnd}\nCalls graded: ${rows.length}\nAverage score: ${averageScore}/10\n\n## Focus\n\n${focus.focus}\n\n## Next call behavior\n\n${nextCallFocus}\n`
+          primaryFocusDimension,
+          focusRationale,
+          primaryFocus,
+          nextCallFocus: effectiveNextCallFocus,
+          summaryMarkdown
         })
         .onConflictDoUpdate({
           target: [
@@ -221,12 +545,23 @@ async function main() {
             strongestDimension,
             weakestDimension: weakestScoreDimension,
             weakestScoreDimension,
-            primaryFocusDimension: focus.dimension,
-            focusRationale: focus.rationale,
-            primaryFocus: focus.focus,
-            nextCallFocus
+            primaryFocusDimension,
+            focusRationale,
+            primaryFocus,
+            nextCallFocus: effectiveNextCallFocus,
+            summaryMarkdown
           }
         });
+
+      await upsertSummaryArtifact({
+        reportType: "rep_summary",
+        periodType,
+        periodStart,
+        periodEnd,
+        repUserId: rep.id,
+        contentMarkdown: summaryMarkdown
+      });
+      artifacts += 1;
 
       if (periodType === "daily") {
         const existingAction = await db
@@ -237,7 +572,7 @@ async function main() {
               eq(coachingActionItems.repUserId, rep.id),
               eq(coachingActionItems.sourcePeriodStart, periodStart),
               eq(coachingActionItems.sourcePeriodEnd, periodEnd),
-              eq(coachingActionItems.dimension, focus.dimension),
+            eq(coachingActionItems.dimension, primaryFocusDimension),
               eq(coachingActionItems.status, "open")
             )
           )
@@ -247,22 +582,86 @@ async function main() {
             repUserId: rep.id,
             sourcePeriodStart: periodStart,
             sourcePeriodEnd: periodEnd,
-            dimension: focus.dimension,
-            actionText: nextCallFocus,
+            dimension: primaryFocusDimension,
+            actionText: effectiveNextCallFocus,
             whyItMatters: "This was selected by the Decoded leverage model for the current coaching window.",
             status: "open"
           });
         }
       }
 
+      managerRepSummaries.push({
+        repName: rep.displayName,
+        callsGraded: rows.length,
+        averageScore,
+        primaryFocus,
+        nextCallFocus: effectiveNextCallFocus,
+        weakestScoreDimension,
+        strongestDimension,
+        scorecards: rows
+      });
       summaries += 1;
+    }
+
+    if (managerRepSummaries.length) {
+      let managerMarkdown = buildManagerSummaryMarkdown({
+        titlePeriod,
+        periodStart,
+        periodEnd,
+        repSummaries: managerRepSummaries
+      });
+
+      if (llm) {
+        const previousContext = await getPreviousManagerContext(periodType, periodStart, periodEnd);
+        console.log(`Generating LLM ${periodType} manager summary (${managerRepSummaries.length} reps)`);
+        const llmManagerSummary = await writeCoachingSummary({
+          audience: "manager",
+          periodType,
+          periodStart,
+          periodEnd,
+          aggregate: {
+            reps_reviewed: managerRepSummaries.length,
+            total_calls: managerRepSummaries.reduce((sum, rep) => sum + rep.callsGraded, 0),
+            rep_summaries: managerRepSummaries.map(({ scorecards: _scorecards, ...rep }) => rep)
+          },
+          previousContext,
+          scorecards: managerRepSummaries.flatMap((rep) => rep.scorecards)
+        });
+        managerMarkdown = llmManagerSummary.markdown;
+        console.log(`Generated LLM ${periodType} manager summary`);
+      }
+
+      for (const manager of managers) {
+        await upsertSummaryArtifact({
+          reportType: "manager_summary",
+          periodType,
+          periodStart,
+          periodEnd,
+          managerUserId: manager.id,
+          contentMarkdown: managerMarkdown
+        });
+        artifacts += 1;
+      }
     }
   }
 
-  console.log(JSON.stringify({ ok: true, date, period, summaries }, null, 2));
+  return { ok: true, date, period, summaries, artifacts };
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+async function main() {
+  const { date, period, llm } = parseArgs();
+  const result = await generateSummaries({ date, period, llm });
+  console.log(JSON.stringify(result, null, 2));
+}
+
+function isDirectExecution() {
+  const entry = process.argv[1];
+  return Boolean(entry) && path.resolve(entry) === fileURLToPath(import.meta.url);
+}
+
+if (isDirectExecution()) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}

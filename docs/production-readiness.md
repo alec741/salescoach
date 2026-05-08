@@ -31,7 +31,7 @@ Status: testing-ready locally with mock data; not production-ready.
 - Production auth is not configured or verified.
 - Production database, backups, restore process, and environment separation are not verified.
 - OpenAI automation is scaffolded but not activated with `OPENAI_API_KEY` and model configuration.
-- Slack delivery is scaffolded for report send events, but the workspace token/channel have not been configured or verified.
+- Slack delivery now supports manager-summary sends through `npm run slack:summary:deliver`, but production still needs a bot token with `chat:write`, a manager channel ID, and verification against real DB-backed summary artifacts.
 - No production deployment target, domain, HTTPS policy, rollback plan, or monitoring has been verified.
 - Dependency audit is currently clean with package overrides for vulnerable transitive `postcss` and `esbuild` versions.
 
@@ -40,7 +40,7 @@ Status: testing-ready locally with mock data; not production-ready.
 1. Create separate Neon dev and production databases, then run migrations against dev first.
 2. Wire Neon Auth and verify route protection for manager, rep, and admin views.
 3. Validate the DB-backed UI actions against a real Neon dev database.
-4. Configure `SLACK_BOT_TOKEN` and `SLACK_MANAGER_CHANNEL_ID`, then verify report send events in a test channel.
+4. Configure `SLACK_BOT_TOKEN` and `SLACK_MANAGER_CHANNEL_ID`, run `npm run slack:check`, then verify both `npm run slack:test` and `npm run slack:summary:deliver -- --period daily --date YYYY-MM-DD --dry-run`.
 5. Activate OpenAI grading/summarization behind explicit environment toggles.
 6. Add production deployment configuration, rollback steps, and health checks.
 7. Keep `npm audit --audit-level=moderate` in the release gate before public access.

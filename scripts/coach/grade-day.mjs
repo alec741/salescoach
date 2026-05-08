@@ -1,4 +1,5 @@
 import path from "node:path";
+import fs from "node:fs";
 import {
   ROOT,
   appendJsonl,
@@ -22,6 +23,7 @@ function parseArgs(argv) {
     minDurationSeconds: 120,
     provider: process.env.COACH_GRADER_PROVIDER || "openai",
     regrade: false,
+    replaceOutput: false,
     limit: null
   };
 
@@ -55,6 +57,9 @@ function parseArgs(argv) {
         break;
       case "--regrade":
         args.regrade = true;
+        break;
+      case "--replace-output":
+        args.replaceOutput = true;
         break;
       case "--limit":
         args.limit = Number(next);
@@ -97,6 +102,10 @@ async function main() {
   if (args.limit) gradeable = gradeable.slice(0, args.limit);
 
   const outPath = scorecardPath(provider, window.localDate);
+  if (args.replaceOutput && args.regrade) {
+    fs.mkdirSync(path.dirname(outPath), { recursive: true });
+    fs.writeFileSync(outPath, "", "utf8");
+  }
   const existing = args.regrade ? [] : readJsonl(outPath);
   const existingIds = new Set(existing.map((scorecard) => scorecard.call_id));
   const todo = gradeable.filter((call) => !existingIds.has(call.id));

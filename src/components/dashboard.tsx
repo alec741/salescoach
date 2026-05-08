@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, FileText, Headphones, Target, TrendingUp, TriangleAlert } from "lucide-react";
 import { ScoreTrend } from "./charts";
+import { CompleteActionButton } from "./complete-action-button";
 import { DimensionTrends } from "./dimension-trends";
 import { EmptyState, MetricCard, PageBadge } from "./app-shell";
-import { formatDate, formatScore, initials, titleCaseDimension } from "@/lib/format";
+import { formatDate, formatPercent, formatScore, initials, titleCaseDimension } from "@/lib/format";
 import type { CallRow, CoachingAction, CoachingSummary, DashboardData, RepPerformance } from "@/lib/types";
 
 export function DashboardOverview({ data, mode }: { data: DashboardData; mode: "rep" | "manager" }) {
@@ -14,7 +15,7 @@ export function DashboardOverview({ data, mode }: { data: DashboardData; mode: "
   const biggestMover = data.reps.slice().sort((a, b) => b.improvement - a.improvement)[0] || data.reps[0];
   return (
     <section>
-      <div className="decision-brief card">
+      <div className={`decision-brief card ${mode === "manager" ? "accent-risk" : "accent-focus"}`}>
         <div>
           <div className="eyebrow">{mode === "rep" ? "Next action" : "Manager review queue"}</div>
           <h2>{mode === "rep" ? `Practice ${leverageFocusLabel} on the next call block` : `Start with ${highestRisk?.name || "the highest-risk rep"}`}</h2>
@@ -29,21 +30,29 @@ export function DashboardOverview({ data, mode }: { data: DashboardData; mode: "
             Review evidence
             <ArrowRight size={15} />
           </Link>
-          <span className="metric-pill">{mode === "rep" ? leverageFocusLabel : `${highestRisk?.complianceFlags || 0} flags`}</span>
-          {mode === "manager" && biggestMover ? <span className="metric-pill">{biggestMover.name} improving</span> : null}
+          <span className={mode === "rep" ? "metric-pill" : "metric-pill badge risk"}>{mode === "rep" ? leverageFocusLabel : `${highestRisk?.complianceFlags || 0} flags`}</span>
+          {mode === "manager" && biggestMover ? <span className="metric-pill badge good">{biggestMover.name} improving</span> : null}
         </div>
       </div>
 
       <div className="metric-grid">
         <MetricCard label={mode === "rep" ? "My score" : "Team score"} value={formatScore(data.teamAverage)} note="Average graded coaching score" />
         <MetricCard label="Calls graded" value={String(data.totalCalls)} note="Substantive calls in current view" />
-        <MetricCard label="Compliance flags" value={String(data.complianceFlags)} note="Items requiring manager attention" />
-        <MetricCard label="Leverage focus" value={leverageFocusLabel} note="Highest-impact coaching behavior" />
+        <MetricCard label="Compliance flags" value={String(data.complianceFlags)} note="Items requiring manager attention" tone="risk" />
+        <MetricCard label="Leverage focus" value={leverageFocusLabel} note="Highest-impact coaching behavior" tone="focus" />
+        {mode === "manager" ? (
+          <MetricCard
+            label="Won rate"
+            value={formatPercent(data.teamOutcomes.winRate)}
+            note={`${data.teamOutcomes.won} won, ${data.teamOutcomes.lost} lost, ${data.teamOutcomes.open} open`}
+            tone="progress"
+          />
+        ) : null}
       </div>
 
       <div className="dashboard-grid">
         <div className="stack">
-          <section className="card panel">
+          <section className="card panel accent-progress">
             <div className="panel-header">
               <div>
                 <div className="eyebrow">Performance trend</div>
@@ -61,13 +70,72 @@ export function DashboardOverview({ data, mode }: { data: DashboardData; mode: "
             history={data.dimensionTrends}
           />
 
+          {mode === "manager" ? <OutcomeTrendBoard reps={data.reps} teamOutcomes={data.teamOutcomes} /> : null}
           {mode === "manager" ? <ManagerReviewQueue reps={data.reps} /> : <RecentCalls calls={data.calls.slice(0, 6)} />}
         </div>
 
         <div className="stack">
-          <CoachingFocus opportunity={data.teamOpportunity} actions={data.actions} />
+          <CoachingFocus opportunity={data.teamOpportunity} actions={data.actions} mode={mode} />
           {mode === "manager" ? <TeamActionQueue reps={data.reps} actions={data.actions} /> : <SummaryList summaries={data.summaries.slice(0, 4)} />}
         </div>
+      </div>
+    </section>
+  );
+}
+
+export function OutcomeTrendBoard({
+  reps,
+  teamOutcomes
+}: {
+  reps: RepPerformance[];
+  teamOutcomes: DashboardData["teamOutcomes"];
+}) {
+  return (
+    <section className="card panel accent-progress">
+      <div className="panel-header">
+        <div>
+          <div className="eyebrow">Outcome reporting</div>
+          <h2>Won, lost, open, and no-decision by rep</h2>
+        </div>
+        <span className="metric-pill">{formatPercent(teamOutcomes.winRate)} won rate</span>
+      </div>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Rep</th>
+              <th>Won</th>
+              <th>Lost</th>
+              <th>Open</th>
+              <th>No decision</th>
+              <th>Win rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            {reps
+              .slice()
+              .sort((a, b) => b.outcomes.closed - a.outcomes.closed || b.outcomes.total - a.outcomes.total || a.name.localeCompare(b.name))
+              .map((rep) => (
+                <tr key={rep.id}>
+                  <td>
+                    <Link href={`/manager/reps/${rep.id}`} className="rep-cell">
+                      <span className="avatar">{initials(rep.name)}</span>
+                      <span>
+                        <strong>{rep.name}</strong>
+                        <br />
+                        <span className="muted">{rep.outcomes.total} tracked calls</span>
+                      </span>
+                    </Link>
+                  </td>
+                  <td className="good">{rep.outcomes.won}</td>
+                  <td className={rep.outcomes.lost > rep.outcomes.won ? "risk" : ""}>{rep.outcomes.lost}</td>
+                  <td>{rep.outcomes.open}</td>
+                  <td>{rep.outcomes.noDecision}</td>
+                  <td>{formatPercent(rep.outcomes.winRate)}</td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
       </div>
     </section>
   );
@@ -76,7 +144,7 @@ export function DashboardOverview({ data, mode }: { data: DashboardData; mode: "
 export function TeamActionQueue({ reps, actions }: { reps: RepPerformance[]; actions: CoachingAction[] }) {
   const risk = reps.filter((rep) => rep.complianceFlags > 0).sort((a, b) => b.complianceFlags - a.complianceFlags).slice(0, 3);
   return (
-    <section className="card panel">
+    <section className="card panel accent-risk">
       <div className="panel-header">
         <div>
           <div className="eyebrow">Action queue</div>
@@ -86,16 +154,16 @@ export function TeamActionQueue({ reps, actions }: { reps: RepPerformance[]; act
       </div>
       <div className="summary-list">
         {risk.map((rep) => (
-          <Link key={rep.id} href={`/manager/reps/${rep.id}`} className="action-item action-link">
+          <Link key={rep.id} href={`/manager/reps/${rep.id}`} className="action-item state-risk action-link">
             <div className="action-meta">
               <strong>{rep.name}</strong>
-              <span className="badge amber">{rep.complianceFlags} flags</span>
+              <span className="badge risk">{rep.complianceFlags} flags</span>
             </div>
             <p className="muted">Coach {titleCaseDimension(rep.primaryFocusDimension)} and check compliance language.</p>
           </Link>
         ))}
         {actions.slice(0, 1).map((action) => (
-          <div key={action.id} className="action-item">
+          <div key={action.id} className="action-item state-focus">
             <div className="action-meta">
               <span className="badge">{titleCaseDimension(action.dimension)}</span>
               <span className="muted">Team drill</span>
@@ -108,10 +176,18 @@ export function TeamActionQueue({ reps, actions }: { reps: RepPerformance[]; act
   );
 }
 
-export function CoachingFocus({ opportunity, actions }: { opportunity: string; actions: CoachingAction[] }) {
+export function CoachingFocus({
+  opportunity,
+  actions,
+  mode = "manager"
+}: {
+  opportunity: string;
+  actions: CoachingAction[];
+  mode?: "rep" | "manager";
+}) {
   const labels = ["Practice", "Apply", "Review"];
   return (
-    <section className="card panel">
+    <section className="card panel accent-focus">
       <div className="panel-header">
         <div>
           <div className="eyebrow">7-day coaching focus</div>
@@ -122,9 +198,9 @@ export function CoachingFocus({ opportunity, actions }: { opportunity: string; a
       <p>{opportunity}</p>
       <div className="action-list" style={{ marginTop: 14 }}>
         {actions.slice(0, 3).map((action, index) => (
-          <article key={action.id} className="action-item">
+          <article key={action.id} className={`action-item ${index === 0 ? "state-focus" : index === 1 ? "state-progress" : "state-risk"}`}>
             <div className="action-meta">
-              <span className="badge">{titleCaseDimension(action.dimension)}</span>
+              <span className={index === 2 ? "badge info" : "badge"}>{titleCaseDimension(action.dimension)}</span>
               <span className="muted">{labels[index] || action.status}</span>
             </div>
             <h3>{action.actionText}</h3>
@@ -135,6 +211,11 @@ export function CoachingFocus({ opportunity, actions }: { opportunity: string; a
                   ? "Use it before plan, rate, promotion, or platform walkthrough language."
                   : "After the call block, compare whether the quantified pain changed the sales conversation."}
             </p>
+            {mode === "rep" ? (
+              <div className="detail-actions" style={{ marginTop: 12 }}>
+                <CompleteActionButton actionId={action.id} />
+              </div>
+            ) : null}
           </article>
         ))}
       </div>
@@ -145,7 +226,7 @@ export function CoachingFocus({ opportunity, actions }: { opportunity: string; a
 export function RepLeaderboard({ reps }: { reps: RepPerformance[] }) {
   if (!reps.length) return <EmptyState title="No reps mapped yet" body="Add reps to app_users and manager_rep_assignments to populate the manager dashboard." />;
   return (
-    <section className="card panel">
+    <section className="card panel accent-risk">
       <div className="panel-header">
         <div>
           <div className="eyebrow">Rep performance</div>
@@ -221,9 +302,11 @@ export function ManagerReviewQueue({ reps }: { reps: RepPerformance[] }) {
               <span className="avatar">{initials(rep.name)}</span>
               <span>
                 <strong>{rep.name}</strong>
-                <small>{titleCaseDimension(rep.primaryFocusDimension)} focus</small>
+                <small>
+                  {rep.outcomes.won} won, {rep.outcomes.lost} lost, {rep.outcomes.open} open, {rep.outcomes.noDecision} no-decision
+                </small>
               </span>
-              <span className={status === "Improving" ? "badge" : "badge amber"}>{status}</span>
+              <span className={status === "Improving" ? "badge good" : status === "Compliance risk" ? "badge risk" : "badge amber"}>{status}</span>
               <strong>{formatScore(rep.averageScore)}</strong>
             </Link>
           );
@@ -236,7 +319,7 @@ export function ManagerReviewQueue({ reps }: { reps: RepPerformance[] }) {
 export function ComplianceWatch({ reps }: { reps: RepPerformance[] }) {
   const watchlist = reps.filter((rep) => rep.complianceFlags > 0).sort((a, b) => b.complianceFlags - a.complianceFlags);
   return (
-    <section className="card panel">
+    <section className="card panel accent-risk">
       <div className="panel-header">
         <div>
           <div className="eyebrow">Compliance</div>
@@ -249,7 +332,7 @@ export function ComplianceWatch({ reps }: { reps: RepPerformance[] }) {
           <div key={rep.id} className="action-item">
             <div className="action-meta">
               <strong>{rep.name}</strong>
-              <span className="badge amber">{rep.complianceFlags} flags</span>
+              <span className="badge risk">{rep.complianceFlags} flags</span>
             </div>
             <p className="muted">Review lender, approval, funding, rate, and 0% claims on recent calls.</p>
           </div>
@@ -262,7 +345,7 @@ export function ComplianceWatch({ reps }: { reps: RepPerformance[] }) {
 
 export function RecentCalls({ calls }: { calls: CallRow[] }) {
   return (
-    <section className="card panel">
+    <section className="card panel accent-report">
       <div className="panel-header">
         <div>
           <div className="eyebrow">Recent calls</div>
@@ -298,7 +381,7 @@ export function RecentCalls({ calls }: { calls: CallRow[] }) {
 
 export function SummaryList({ summaries }: { summaries: CoachingSummary[] }) {
   return (
-    <section className="card panel">
+    <section className="card panel accent-progress">
       <div className="panel-header">
         <div>
           <div className="eyebrow">Past summaries</div>
@@ -308,7 +391,7 @@ export function SummaryList({ summaries }: { summaries: CoachingSummary[] }) {
       </div>
       <div className="summary-list">
         {summaries.map((summary) => (
-          <article key={summary.id} className="action-item">
+          <article key={summary.id} className="action-item state-progress">
             <div className="action-meta">
               <span className="badge">{summary.periodType}</span>
               <span className="muted">{formatScore(summary.averageScore)}</span>
@@ -326,7 +409,7 @@ export function SummaryList({ summaries }: { summaries: CoachingSummary[] }) {
 
 export function TargetStrip({ reps }: { reps: RepPerformance[] }) {
   return (
-    <section className="card wide-panel">
+    <section className="card wide-panel accent-focus">
       <div className="panel-header">
         <div>
           <div className="eyebrow">Targets</div>
@@ -359,7 +442,7 @@ export function TargetStrip({ reps }: { reps: RepPerformance[] }) {
 
 export function ReportsTable({ data }: { data: DashboardData }) {
   return (
-    <section className="card wide-panel">
+    <section className="card wide-panel accent-report">
       <div className="panel-header">
         <div>
           <div className="eyebrow">Artifacts</div>
@@ -388,7 +471,7 @@ export function ReportsTable({ data }: { data: DashboardData }) {
                   {report.periodType} - {formatDate(report.periodStart)}
                 </td>
                 <td>{report.owner}</td>
-                <td>{report.storagePath ? <span className="badge">PDF ready</span> : <span className="muted">Markdown only</span>}</td>
+                <td>{report.storagePath ? <span className="badge info">PDF ready</span> : <span className="badge amber">Markdown only</span>}</td>
               </tr>
             ))}
           </tbody>

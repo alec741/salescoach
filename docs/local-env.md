@@ -16,13 +16,74 @@ Copy-Item .env.example .env
 CLOSE_API_KEY=your_rotated_close_key_here
 ```
 
-3. Verify the export script can read local configuration:
+3. Add the model provider for automated grading when you are ready to run the full coaching backfill:
+
+```dotenv
+COACH_GRADER_PROVIDER=openrouter
+OPENROUTER_API_KEY=your_openrouter_key_here
+OPENROUTER_MODEL=anthropic/claude-sonnet-4.5
+OPENROUTER_SUMMARY_MODEL=anthropic/claude-sonnet-4.5
+CRON_SECRET=generate_a_random_secret_for_hosted_cron_routes
+```
+
+4. Verify the export script can read local configuration:
 
 ```powershell
 npm run close:check
 ```
 
 `close:check` is a dry run. It does not call Close and does not expose the key.
+
+## Slack
+
+Report send events can post to Slack when these values are configured:
+
+```dotenv
+SLACK_BOT_TOKEN=xoxb-your-bot-token
+# SLACK_ACCESS_TOKEN is also supported for local OAuth-token testing.
+SLACK_MANAGER_CHANNEL_ID=C0123456789
+SLACK_REP_TARGETS_FILE=config/slack-rep-targets.local.json
+```
+
+Rep delivery targets can also be provided inline with `SLACK_REP_TARGETS_JSON`, but a local file is easier to maintain. The file should contain a flat JSON object keyed by app user ID, rep email, or Close user ID:
+
+```json
+{
+  "rep1@example.com": "U0123456789",
+  "close_user_42": "C0123456789",
+  "3fa85f64-5717-4562-b3fc-2c963f66afa6": "U0987654321"
+}
+```
+
+Each value can be either a Slack user ID for a private DM or a channel ID for a private rep channel.
+
+Use a bot token when possible. The bot must be installed in the workspace and invited to the target channel. Verify without posting:
+
+```powershell
+npm run slack:check
+```
+
+Send a test message only after the channel ID is set:
+
+```powershell
+npm run slack:test
+```
+
+Preview a manager summary delivery payload:
+
+```powershell
+npm run slack:summary:deliver -- --period daily --date 2026-05-06 --dry-run
+```
+
+Preview rep-summary targeting for one rep without posting:
+
+```powershell
+npm run slack:summary:deliver -- --audience rep --period daily --date 2026-05-06 --rep rep1@example.com --dry-run
+```
+
+`SLACK_SIGNING_SECRET` is only needed for inbound Slack request verification, which is not currently used by the report-send flow.
+
+The current app only needs outbound posting. `chat:write` is the required Slack scope for report notifications. Channel-read scopes are optional and only needed if you run `node scripts/slack-check.mjs --check-channel`.
 
 ## Usage
 
@@ -33,6 +94,14 @@ node scripts/close-export-calls.mjs --since 2026-05-01 --max 100 --out data/clos
 ```
 
 Shell environment variables still take precedence over `.env`, so you can temporarily override the key without editing the file.
+
+If you deploy to Vercel, copy the same variables into the Vercel project settings. `CRON_SECRET` specifically protects `/api/cron/*` routes and should be set in production before enabling the cron schedules from `vercel.json`.
+
+Run the 30-day OpenRouter backfill with:
+
+```powershell
+node scripts/coach/backfill.mjs --days 30 --provider openrouter --llm-summaries
+```
 
 ## Safety
 

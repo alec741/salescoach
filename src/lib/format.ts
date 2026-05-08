@@ -12,11 +12,40 @@ export function formatScore(value: number | string | null | undefined) {
   return number.toFixed(1);
 }
 
+export function formatPercent(value: number | null | undefined) {
+  const number = Number(value ?? 0);
+  return `${Math.round(number * 100)}%`;
+}
+
+export function formatCurrency(value: number | null | undefined) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return "N/A";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0
+  }).format(Number(value));
+}
+
+export function outcomeLabel(value: string | null | undefined) {
+  if (!value) return "Unknown";
+  return value.replace(/_/g, " ");
+}
+
 export function formatDate(value: string | Date) {
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric"
+  }).format(new Date(value));
+}
+
+export function formatDateTime(value: string | Date) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
   }).format(new Date(value));
 }
 

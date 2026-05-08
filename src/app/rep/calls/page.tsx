@@ -14,7 +14,14 @@ export default async function RepCallsPage() {
       title="Call review workspace"
       subtitle="Review scored calls, isolate risk, and turn evidence into the next behavior to practice."
     >
-      <CallsBrowser calls={data.calls} />
+      <CallsBrowser
+        calls={data.calls}
+        currentUserId={data.currentUser.id}
+        currentUserName={data.currentUser.displayName}
+        currentUserRole={data.currentUser.role}
+        feedbackStorageReady={data.feedbackStorageReady}
+        feedbackStorageMessage={data.feedbackStorageMessage}
+      />
     </AppShell>
   );
 }

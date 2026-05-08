@@ -2,7 +2,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { average, clampScore, readJson, transcriptText } from "./shared.mjs";
 
-const ROOT = process.cwd();
 const RUBRIC_KEYS = [
   "opening",
   "qualification",
@@ -64,6 +63,38 @@ const COMBINED_FOCUS = new Map([
     behavior: "Confirm segment, timing, financing process, and desired outcome before moving into product mechanics."
   }]
 ]);
+
+const SEGMENT_LABELS = {
+  contractor_a_no_financing: "Contractor A - no financing solution",
+  contractor_b_dealer_fee: "Contractor B - dealer-fee/direct-lender financing",
+  poor_fit: "Poor fit",
+  adjacent: "Adjacent/non-core fit",
+  unknown: "Unknown / not enough evidence"
+};
+
+const CALL_TYPES = [
+  "first_call",
+  "follow_up",
+  "payment_close",
+  "no_show_recovery",
+  "partner_follow_up",
+  "post_close_handoff",
+  "nurture",
+  "disqualification",
+  "unknown"
+];
+
+const OUTCOME_TYPES = [
+  "won_despite_weak_process",
+  "won_with_strong_process",
+  "lost_because_of_weak_process",
+  "advanced_with_risk",
+  "advanced_strong",
+  "disqualified_correctly",
+  "no_decision_due_to_missing_pain",
+  "no_decision_other",
+  "unknown"
+];
 
 const LEVERAGE_WEIGHTS = {
   qualification: 1.25,
@@ -133,6 +164,10 @@ const SCORECARD_SCHEMA = {
     duration_minutes: { type: "number" },
     transcript_utterances: { type: "integer" },
     lead_segment: { type: "string" },
+    call_type: { type: "string", enum: CALL_TYPES },
+    outcome_type: { type: "string", enum: OUTCOME_TYPES },
+    outcome_rationale: { type: "string" },
+    focus_dimension: { type: "string", enum: RUBRIC_KEYS },
     scores: {
       type: "object",
       additionalProperties: false,
@@ -143,6 +178,42 @@ const SCORECARD_SCHEMA = {
     top_strength: { type: "string" },
     biggest_coaching_opportunity: { type: "string" },
     next_call_focus: { type: "string" },
+    coachable_moment: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        moment_type: { type: "string", enum: ["missed_question", "premature_solution", "strong_move", "compliance_risk", "close_control", "fit_risk"] },
+        timestamp_hint: { type: "string" },
+        what_happened: { type: "string" },
+        why_it_matters: { type: "string" },
+        better_rep_language: { type: "string" }
+      },
+      required: ["moment_type", "timestamp_hint", "what_happened", "why_it_matters", "better_rep_language"]
+    },
+    manager_coaching_note: { type: "string" },
+    manager_action: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        listen_for: { type: "string" },
+        review_call_reason: { type: "string" },
+        roleplay: { type: "string" },
+        metric_to_move: { type: "string" },
+        ignore_for_now: { type: "string" }
+      },
+      required: ["listen_for", "review_call_reason", "roleplay", "metric_to_move", "ignore_for_now"]
+    },
+    success_pattern: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        what_worked: { type: "string" },
+        when_it_works: { type: "string" },
+        shareable_talk_track: { type: "string" }
+      },
+      required: ["what_worked", "when_it_works", "shareable_talk_track"]
+    },
+    rep_practice_drill: { type: "string" },
     compliance_flags: { type: "array", items: { type: "string" } },
     evidence_summary: {
       type: "object",
@@ -171,25 +242,104 @@ const SCORECARD_SCHEMA = {
     "duration_minutes",
     "transcript_utterances",
     "lead_segment",
+    "call_type",
+    "outcome_type",
+    "outcome_rationale",
+    "focus_dimension",
     "scores",
     "overall_score",
     "top_strength",
     "biggest_coaching_opportunity",
     "next_call_focus",
+    "coachable_moment",
+    "manager_coaching_note",
+    "manager_action",
+    "success_pattern",
+    "rep_practice_drill",
     "compliance_flags",
     "evidence_summary"
   ]
 };
 
-function readText(relativePath) {
-  return fs.readFileSync(path.join(ROOT, relativePath), "utf8");
+function projectPath(...segments) {
+  return path.join(/* turbopackIgnore: true */ process.cwd(), ...segments);
+}
+
+function readText(...segments) {
+  return fs.readFileSync(projectPath(...segments), "utf8");
+}
+
+function normalizeLabel(value) {
+  return String(value || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function normalizeDimension(value, scores) {
+  const normalized = normalizeLabel(value);
+  const aliases = {
+    solution: "solution_to_pain",
+    solution_mapping: "solution_to_pain",
+    solution_to_pain: "solution_to_pain",
+    feature_dump: "feature_dump_control",
+    feature_dumping: "feature_dump_control",
+    feature_dump_control: "feature_dump_control",
+    close: "close_or_next_step",
+    closing: "close_or_next_step",
+    next_step: "close_or_next_step",
+    close_or_next_step: "close_or_next_step"
+  };
+  const key = aliases[normalized] || normalized;
+  if (RUBRIC_KEYS.includes(key)) return key;
+  return chooseCoachingFocus(scores).primaryDimension;
+}
+
+function normalizeLeadSegment(value) {
+  const normalized = normalizeLabel(value);
+  if (/contractor.*b|dealer.*fee|direct.*lender|synchrony|greensky|goodleap|service.*finance/.test(normalized)) {
+    return SEGMENT_LABELS.contractor_b_dealer_fee;
+  }
+  if (/contractor.*a|no.*financing|new.*financing|no_financing/.test(normalized)) {
+    return SEGMENT_LABELS.contractor_a_no_financing;
+  }
+  if (/poor|bad_fit|emergency|same_day|solar|heavy.*buydown|commercial_only|custom_home/.test(normalized)) {
+    return SEGMENT_LABELS.poor_fit;
+  }
+  if (/partner|retailer|product|adjacent|reactivation|existing_customer|non_contractor/.test(normalized)) {
+    return SEGMENT_LABELS.adjacent;
+  }
+  return SEGMENT_LABELS.unknown;
+}
+
+function normalizeEnum(value, allowed, fallback = "unknown") {
+  const normalized = normalizeLabel(value);
+  return allowed.includes(normalized) ? normalized : fallback;
+}
+
+function normalizeScorecardFields(scorecard) {
+  const focus = chooseCoachingFocus(scorecard.scores || {}, scorecard.compliance_flags || [], 1);
+  const focusDimension = normalizeDimension(scorecard.focus_dimension || scorecard.biggest_coaching_opportunity, scorecard.scores || {});
+  scorecard.focus_dimension = focusDimension;
+  scorecard.biggest_coaching_opportunity = THEMES[focusDimension] || focus.headline;
+  scorecard.lead_segment = normalizeLeadSegment(scorecard.lead_segment);
+  scorecard.call_type = normalizeEnum(scorecard.call_type, CALL_TYPES);
+  scorecard.outcome_type = normalizeEnum(scorecard.outcome_type, OUTCOME_TYPES);
+  if (!scorecard.next_call_focus || scorecard.next_call_focus.length < 30) {
+    scorecard.next_call_focus = focus.behavior;
+  }
+  return scorecard;
 }
 
 function getGroundingContext() {
-  const methodology = readJson(path.join(ROOT, "config", "methodology.decoded.json"));
-  const profile = readJson(path.join(ROOT, "config", "companies", "enhancify.json"));
-  const rubric = readText(path.join("prompts", "grading", "call-scorecard.md"));
-  const liveCallPrompt = readText(path.join("prompts", "live-call-coach.md"));
+  const methodology = readJson(projectPath("config", "methodology.decoded.json"));
+  const profile = readJson(projectPath("config", "companies", "enhancify.json"));
+  const rubric = readText("prompts", "grading", "call-scorecard.md");
+  const liveCallPrompt = readText("prompts", "live-call-coach.md");
 
   return [
     "# Decoded Methodology",
@@ -231,15 +381,15 @@ function extractOutputText(response) {
   return text.join("\n");
 }
 
-function validateScorecard(scorecard, call) {
+function validateScorecard(scorecard, call, providerName = "openai") {
   for (const key of RUBRIC_KEYS) {
     const score = scorecard.scores?.[key];
     if (!Number.isFinite(score) || score < 1 || score > 10) {
-      throw new Error(`OpenAI grader returned invalid ${key} score for call ${call.id}`);
+      throw new Error(`${providerName} grader returned invalid ${key} score for call ${call.id}`);
     }
   }
 
-  scorecard.grader_provider = "openai";
+  scorecard.grader_provider = providerName;
   scorecard.call_id = scorecard.call_id || call.id || "";
   scorecard.lead_id = scorecard.lead_id || call.lead_id || "";
   scorecard.rep_id = scorecard.rep_id || call.user_id || "";
@@ -253,7 +403,7 @@ function validateScorecard(scorecard, call) {
   scorecard.transcript_utterances = scorecard.transcript_utterances || call.recording_transcript?.utterances?.length || 0;
   scorecard.overall_score = Math.round((average(Object.values(scorecard.scores)) || 0) * 10) / 10;
 
-  return scorecard;
+  return normalizeScorecardFields(scorecard);
 }
 
 async function scoreOpenAi(call) {
@@ -275,7 +425,12 @@ async function scoreOpenAi(call) {
             "You are the Decoded Coach grading engine for Enhancify sales calls.",
             "Use the provided Decoded methodology and Enhancify knowledge base as the source of truth.",
             "Grade coaching behavior, not just keyword presence.",
-            "Return one focused coaching opportunity, not a laundry list.",
+            "Return one focused coaching opportunity with one specific coachable moment from the call.",
+            "Classify call_type and outcome_type. Grade against the right call type; do not grade payment-close calls like first discovery calls.",
+            "Closed-won outcomes do not erase weak process. Identify if the rep won despite weak process, advanced with risk, or lost/no-decided because pain was not established.",
+            "Extract one success pattern worth reinforcing, not only one weakness.",
+            "Give a manager action with what to listen for, which call to review, roleplay, metric to move, and what to ignore for now.",
+            "Generic advice is a failure. Include the actual behavior pattern and a better sentence the rep could use next time.",
             "Do not include raw transcript excerpts or personally sensitive customer details."
           ].join("\n")
         }
@@ -327,7 +482,95 @@ async function scoreOpenAi(call) {
   const outputText = extractOutputText(payload);
   if (!outputText) throw new Error(`OpenAI grader returned no output text for call ${call.id}`);
 
-  return validateScorecard(JSON.parse(outputText), call);
+  return validateScorecard(JSON.parse(outputText), call, "openai");
+}
+
+function extractChatContent(response) {
+  const content = response.choices?.[0]?.message?.content;
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content
+      .map((part) => {
+        if (typeof part === "string") return part;
+        if (part?.type === "text" && typeof part.text === "string") return part.text;
+        return "";
+      })
+      .join("\n");
+  }
+  return "";
+}
+
+async function scoreOpenRouter(call) {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    throw new Error("OPENROUTER_API_KEY is required for OpenRouter grading. Add it to .env, then rerun this command.");
+  }
+
+  const model = process.env.OPENROUTER_MODEL || "anthropic/claude-sonnet-4.5";
+  const metadata = callMetadata(call);
+  const transcript = transcriptText(call, Number(process.env.COACH_TRANSCRIPT_MAX_CHARS || 28000));
+  const systemPrompt = [
+    "You are the Decoded Coach grading engine for Enhancify sales calls.",
+    "Use the provided Decoded methodology and Enhancify knowledge base as the source of truth.",
+    "Grade coaching behavior, not just keyword presence.",
+    "Return one focused coaching opportunity with one specific coachable moment from the call.",
+    "Classify call_type and outcome_type. Grade against the right call type; do not grade payment-close calls like first discovery calls.",
+    "Closed-won outcomes do not erase weak process. Identify if the rep won despite weak process, advanced with risk, or lost/no-decided because pain was not established.",
+    "Extract one success pattern worth reinforcing, not only one weakness.",
+    "Give a manager action with what to listen for, which call to review, roleplay, metric to move, and what to ignore for now.",
+    "Generic advice is a failure. Include the actual behavior pattern and a better sentence the rep could use next time.",
+    "Do not include raw transcript excerpts or personally sensitive customer details."
+  ].join("\n");
+  const userPrompt = [
+    getGroundingContext(),
+    "# Call Metadata",
+    JSON.stringify(metadata, null, 2),
+    "# Transcript",
+    transcript
+  ].join("\n\n");
+
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "X-OpenRouter-Experimental-Metadata": "enabled"
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ],
+      temperature: 0.1,
+      max_tokens: Number(process.env.OPENROUTER_MAX_TOKENS || 3200),
+      provider: {
+        require_parameters: true
+      },
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "enhancify_call_scorecard",
+          strict: true,
+          schema: SCORECARD_SCHEMA
+        }
+      }
+    })
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`OpenRouter grader request failed (${response.status}): ${body.slice(0, 1000)}`);
+  }
+
+  const payload = await response.json();
+  const outputText = extractChatContent(payload);
+  if (!outputText) throw new Error(`OpenRouter grader returned no output text for call ${call.id}`);
+
+  const scorecard = validateScorecard(JSON.parse(outputText), call, "openrouter");
+  scorecard.grader_model = payload.model || model;
+  scorecard.openrouter_generation_id = payload.id || null;
+  return scorecard;
 }
 
 // Kept only for explicit smoke tests. This is not the default coaching grader.
@@ -367,6 +610,7 @@ function scoreHeuristic(call) {
 
 export async function gradeCall(call, { provider = process.env.COACH_GRADER_PROVIDER || "openai" } = {}) {
   if (provider === "heuristic") return scoreHeuristic(call);
+  if (provider === "openrouter") return scoreOpenRouter(call);
   if (provider !== "openai") throw new Error(`Unsupported grader provider: ${provider}`);
   return scoreOpenAi(call);
 }

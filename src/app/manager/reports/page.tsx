@@ -11,8 +11,8 @@ export default async function ManagerReportsPage() {
     <AppShell
       user={data.currentUser}
       active="/manager/reports"
-      title="Report artifact library"
-      subtitle="Open, export, regenerate, and send manager or rep coaching reports from one place."
+      title="Report artifact library and ops monitor"
+      subtitle="Open, export, regenerate, send, and monitor manager or rep coaching reports from one place."
     >
       <ReportsWorkspace data={data} />
     </AppShell>

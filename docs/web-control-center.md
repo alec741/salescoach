@@ -26,10 +26,12 @@ Then run:
 ```powershell
 npm run db:migrate
 npm run db:seed:sales-reps -- --manager-email manager@enhancify.example
-npm run db:import:scorecards -- --file data/coach/codex-review/2026-05-06-over-10min/codex-scorecards.jsonl --date 2026-05-06
+npm run db:import:scorecards -- --file data/coach/codex-review/2026-05-06-over-10min/codex-scorecards.jsonl --calls-file data/close/calls-2026-05.jsonl --date 2026-05-06
 npm run db:summarize -- --date 2026-05-06 --period all
 npm run db:import:reports -- --manifest output/pdf/daily/2026-05-06/codex-leverage-fix/manifest.json
 ```
+
+`--calls-file` is optional but recommended when you want the imported scorecards to retain Close opportunity status, pipeline, value, and won or lost signals inside `evidenceSummaryJson`.
 
 OAuth identity comes from Neon Auth. App authorization is stored in `app_users` and `manager_rep_assignments`.
 
@@ -68,7 +70,7 @@ These frontend actions now persist when `DATABASE_URL` is configured:
 - `Save mapping` updates `app_users` and can create a `manager_rep_assignments` row.
 - `Deactivate` sets `app_users.active=false`.
 - `Regenerate` and `Send packet` record operational events in `report_artifact_events`.
-- If `SLACK_BOT_TOKEN` and `SLACK_MANAGER_CHANNEL_ID` are configured, `Send packet` also posts the request to Slack.
+- If `SLACK_BOT_TOKEN` or `SLACK_ACCESS_TOKEN` and `SLACK_MANAGER_CHANNEL_ID` are configured, `Send packet` also posts the request to Slack.
 
 PDF open/download uses `/api/reports/pdf`. In development it can serve a validated local `output/pdf` path; in production it requires a DB-backed report artifact ID.
 

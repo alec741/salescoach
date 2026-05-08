@@ -1,5 +1,27 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "outputDirectory": null
+  "outputDirectory": null,
+  "crons": [
+    {
+      "path": "/api/cron/grading",
+      "schedule": "*/30 * * * 1-5"
+    },
+    {
+      "path": "/api/cron/summaries/daily",
+      "schedule": "30 23 * * 1-5"
+    },
+    {
+      "path": "/api/cron/summaries/weekly",
+      "schedule": "45 23 * * 5"
+    },
+    {
+      "path": "/api/cron/summaries/monthly",
+      "schedule": "50 23 28-31 * *"
+    },
+    {
+      "path": "/api/cron/summaries/quarterly",
+      "schedule": "55 23 28-31 3,6,9,12 *"
+    }
+  ]
 }

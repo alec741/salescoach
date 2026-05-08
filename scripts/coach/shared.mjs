@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export const ROOT = process.cwd();
+export const ROOT = /* turbopackIgnore: true */ process.cwd();
 export const API_BASE = "https://api.close.com/api/v1";
 export const COACH_TIMEZONE = process.env.COACH_TIMEZONE || "America/New_York";
 

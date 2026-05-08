@@ -26,6 +26,7 @@ type RawScorecard = {
   rep_name?: string;
   activity_at?: string;
   duration_minutes?: number;
+  call_type?: string;
   overall_score?: number;
   scores?: Record<RubricKey, number>;
   top_strength?: string;
@@ -53,6 +54,15 @@ function readJsonl(filePath: string): unknown[] {
 
 function slug(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
+function buildOutcomeSummary(input: Pick<RepPerformance["outcomes"], "won" | "lost" | "open" | "noDecision" | "unknown" | "total">) {
+  const closed = input.won + input.lost;
+  return {
+    ...input,
+    closed,
+    winRate: closed ? input.won / closed : 0
+  };
 }
 
 function fallbackAggregate(): AggregateFile {
@@ -92,6 +102,10 @@ export function getMockDashboardData(role: "rep" | "manager" | "admin" = "manage
     const id = slug(rep.rep_name);
     const focus = chooseCoachingFocus(rep.average_scores, rep.compliance_flag_count, rep.calls);
     const weakestScore = weakestScoreDimension(rep.average_scores);
+    const won = Math.max(0, Math.floor(rep.calls / 3) - (index % 2));
+    const lost = Math.max(0, Math.floor(rep.calls / 4));
+    const open = Math.max(0, rep.calls - won - lost);
+    const noDecision = Math.min(rep.calls, (index % 3) + (rep.calls > 4 ? 1 : 0));
     return {
       id,
       name: rep.rep_name,
@@ -110,7 +124,15 @@ export function getMockDashboardData(role: "rep" | "manager" | "admin" = "manage
       weakestScoreDimension: weakestScore,
       weakestDimension: weakestScore,
       strongestDimension: strongestScoreDimension(rep.average_scores),
-      scores: rep.average_scores
+      scores: rep.average_scores,
+      outcomes: buildOutcomeSummary({
+        won,
+        lost,
+        open,
+        noDecision,
+        unknown: 0,
+        total: rep.calls
+      })
     };
   });
 
@@ -134,8 +156,72 @@ export function getMockDashboardData(role: "rep" | "manager" | "admin" = "manage
     const complianceFlagList = Array.isArray(row.compliance_flags) ? row.compliance_flags.map(String) : [];
     const focus = chooseCoachingFocus(scores, complianceFlagList.length, 1);
     const weakestScore = weakestScoreDimension(scores);
+    const outcomePattern = index % 5;
+    const crmOutcome =
+      outcomePattern === 0
+        ? {
+            closeLeadId: `lead-${index + 1}`,
+            closeOpportunityId: `opp-${index + 1}`,
+            pipelineName: "Sales",
+            statusLabel: "Won",
+            statusType: "won",
+            value: 18000 + index * 750,
+            valuePeriod: "one_time",
+            won: true,
+            lost: false,
+            closeDate: aggregate.date,
+            bucket: "won" as const,
+            noDecision: false
+          }
+        : outcomePattern === 1
+          ? {
+              closeLeadId: `lead-${index + 1}`,
+              closeOpportunityId: `opp-${index + 1}`,
+              pipelineName: "Sales",
+              statusLabel: "Lost",
+              statusType: "lost",
+              value: 14000 + index * 600,
+              valuePeriod: "one_time",
+              won: false,
+              lost: true,
+              closeDate: aggregate.date,
+              bucket: "lost" as const,
+              noDecision: false
+            }
+          : outcomePattern === 2
+            ? {
+                closeLeadId: `lead-${index + 1}`,
+                closeOpportunityId: `opp-${index + 1}`,
+                pipelineName: "Sales",
+                statusLabel: "Open",
+                statusType: "active",
+                value: 22000 + index * 500,
+                valuePeriod: "one_time",
+                won: false,
+                lost: false,
+                closeDate: null,
+                bucket: "open" as const,
+                noDecision: false
+              }
+            : outcomePattern === 3
+              ? {
+                  closeLeadId: `lead-${index + 1}`,
+                  closeOpportunityId: `opp-${index + 1}`,
+                  pipelineName: "Sales",
+                  statusLabel: "Open",
+                  statusType: "active",
+                  value: 12000 + index * 450,
+                  valuePeriod: "one_time",
+                  won: false,
+                  lost: false,
+                  closeDate: null,
+                  bucket: "open" as const,
+                  noDecision: true
+                }
+              : null;
     return {
       id: row.call_id || `call-${index + 1}`,
+      scorecardId: row.call_id || `scorecard-${index + 1}`,
       closeCallId: row.call_id || `call-${index + 1}`,
       repId: slug(repName),
       repName,
@@ -147,12 +233,17 @@ export function getMockDashboardData(role: "rep" | "manager" | "admin" = "manage
       focusRationale: focus.rationale,
       weakestScoreDimension: weakestScore,
       weakestDimension: weakestScore,
+      callType: row.call_type || (index % 2 ? "discovery" : "closing"),
+      outcomeType: outcomePattern === 3 ? "no_decision_due_to_missing_pain" : outcomePattern === 0 ? "won_with_strong_process" : outcomePattern === 1 ? "lost_because_of_weak_process" : "advanced_with_risk",
+      leadSegment: index % 2 ? "Contractor A" : "Contractor B",
       topStrength: row.top_strength || "Keeps qualification clear and structured.",
       nextCallFocus: row.next_call_focus || focus.behavior,
       complianceFlags: complianceFlagList,
       reviewed: Number(row.overall_score || 6) >= 6.5 && complianceFlagList.length <= 1,
       reviewedAt: null,
-      summary: row.evidence_summary?.concise_call_readout || "Concise call readout available after grading."
+      summary: row.evidence_summary?.concise_call_readout || "Concise call readout available after grading.",
+      crmOutcome,
+      feedback: []
     };
   });
 
@@ -184,10 +275,12 @@ export function getMockDashboardData(role: "rep" | "manager" | "admin" = "manage
       periodEnd: aggregate.date,
       callsGraded: rep.calls,
       averageScore: rep.averageScore,
+      dimensionAverages: rep.scores,
       primaryFocus: rep.primaryFocus,
       primaryFocusDimension: rep.primaryFocusDimension,
       focusRationale: rep.focusRationale,
-      nextCallFocus: rep.nextCallFocus
+      nextCallFocus: rep.nextCallFocus,
+      feedback: []
     }))
   );
   const dimensionTrends = (["daily", "weekly", "monthly", "quarterly"] as PeriodType[]).reduce(
@@ -205,6 +298,19 @@ export function getMockDashboardData(role: "rep" | "manager" | "admin" = "manage
     }),
     {} as DashboardData["dimensionTrends"]
   );
+  const teamOutcomes = buildOutcomeSummary(
+    scopedReps.reduce(
+      (acc, rep) => ({
+        won: acc.won + rep.outcomes.won,
+        lost: acc.lost + rep.outcomes.lost,
+        open: acc.open + rep.outcomes.open,
+        noDecision: acc.noDecision + rep.outcomes.noDecision,
+        unknown: acc.unknown + rep.outcomes.unknown,
+        total: acc.total + rep.outcomes.total
+      }),
+      { won: 0, lost: 0, open: 0, noDecision: 0, unknown: 0, total: 0 }
+    )
+  );
 
   return {
     currentUser,
@@ -216,6 +322,7 @@ export function getMockDashboardData(role: "rep" | "manager" | "admin" = "manage
     teamFocusDimensions: teamFocus.dimensions,
     teamFocusRationale: teamFocus.rationale,
     categoryAverages: scopedCategoryAverages,
+    teamOutcomes,
     dimensionTrends,
     scoreTrend: [
       { label: "Apr 1", score: 5.6 },
@@ -249,6 +356,40 @@ export function getMockDashboardData(role: "rep" | "manager" | "admin" = "manage
         owner: "Team",
         storagePath: "output/pdf/daily/2026-05-06/codex-over-10min/daily-coaching-packet.pdf"
       }
-    ]
+    ],
+    monitoring: {
+      openIncidents: 0,
+      failedJobs: 0,
+      failedSlackSends: 0,
+      failedIngestionRuns: 0,
+      modelApiErrors: 0,
+      latestGradeRun: {
+        status: "succeeded",
+        occurredAt: `${aggregate.date}T18:00:00.000Z`,
+        provider: "openrouter",
+        windowStart: `${aggregate.date}T17:15:00.000Z`,
+        windowEnd: `${aggregate.date}T18:00:00.000Z`,
+        pulledCalls: aggregate.total_calls,
+        salesFilteredCalls: aggregate.total_calls,
+        substantiveConnectedCalls: aggregate.total_calls - 4,
+        newlyGradedCalls: aggregate.total_calls - 6,
+        skippedAlreadyGraded: 2,
+        preGradeSkippedCalls: 4
+      },
+      incidents: [
+        {
+          id: "coverage-gap-demo",
+          source: "coverage_gap",
+          severity: "warning",
+          title: "Calls skipped before grading",
+          detail: "4 sales-filtered calls did not become substantive graded calls in the latest pass.",
+          status: "observed",
+          occurredAt: `${aggregate.date}T18:00:00.000Z`,
+          meta: ["Possible causes: missing transcript, short duration, or disconnected calls.", "Provider: openrouter"]
+        }
+      ]
+    },
+    feedbackStorageReady: false,
+    feedbackStorageMessage: "DATABASE_URL is not configured, so scorecard and summary feedback are read-only."
   };
 }

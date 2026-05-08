@@ -2,15 +2,33 @@
 
 import { useMemo, useState } from "react";
 import { ArrowUpRight, CalendarRange, Clock, Target } from "lucide-react";
+import { FeedbackPanel } from "./feedback-panel";
 import { formatDate, formatScore, titleCaseDimension } from "@/lib/format";
-import { rubricKeys, type CoachingSummary, type PeriodType, type RepPerformance, type RubricKey } from "@/lib/types";
+import { rubricKeys, type CoachingSummary, type PeriodType, type RepPerformance, type RubricKey, type UserRole } from "@/lib/types";
 
 const periods: PeriodType[] = ["daily", "weekly", "monthly", "quarterly"];
 
-export function SummariesWorkspace({ summaries, reps }: { summaries: CoachingSummary[]; reps: RepPerformance[] }) {
+export function SummariesWorkspace({
+  summaries,
+  reps,
+  currentUserId,
+  currentUserName,
+  currentUserRole,
+  feedbackStorageReady,
+  feedbackStorageMessage
+}: {
+  summaries: CoachingSummary[];
+  reps: RepPerformance[];
+  currentUserId: string;
+  currentUserName: string;
+  currentUserRole: UserRole;
+  feedbackStorageReady: boolean;
+  feedbackStorageMessage?: string;
+}) {
   const [period, setPeriod] = useState<PeriodType>("daily");
+  const [selectedSummaryId, setSelectedSummaryId] = useState<string>("");
   const visible = useMemo(() => summaries.filter((summary) => summary.periodType === period), [period, summaries]);
-  const latest = visible[0] || summaries[0];
+  const latest = visible.find((summary) => summary.id === selectedSummaryId) || visible[0] || summaries[0];
   const rep = reps.find((item) => item.id === latest?.repId) || reps[0];
   const targetDimension = latest?.primaryFocusDimension || rep?.primaryFocusDimension || "quantification";
   const previous = latest
@@ -31,7 +49,7 @@ export function SummariesWorkspace({ summaries, reps }: { summaries: CoachingSum
 
   return (
     <section className="summary-workspace">
-      <div className="card progress-hero">
+      <div className="card progress-hero accent-progress">
         <div>
           <div className="eyebrow">Progress history</div>
           <h2>{latest ? `${latest.repName}'s ${period} coaching summary` : "No summaries yet"}</h2>
@@ -82,7 +100,7 @@ export function SummariesWorkspace({ summaries, reps }: { summaries: CoachingSum
       </div>
 
       <div className="summary-grid">
-        <div className="card panel">
+        <div className="card panel accent-progress">
           <div className="panel-header">
             <div>
               <div className="eyebrow">Timeline</div>
@@ -95,7 +113,12 @@ export function SummariesWorkspace({ summaries, reps }: { summaries: CoachingSum
               const prior = visible[index + 1]?.averageScore ?? summary.averageScore;
               const change = summary.averageScore - prior;
               return (
-              <button key={summary.id} className="timeline-item" type="button">
+              <button
+                key={summary.id}
+                className={`timeline-item ${latest?.id === summary.id ? "selected" : ""}`}
+                type="button"
+                onClick={() => setSelectedSummaryId(summary.id)}
+              >
                 <span className="timeline-marker" />
                 <span>
                   <strong>{summary.repName}</strong>
@@ -104,7 +127,7 @@ export function SummariesWorkspace({ summaries, reps }: { summaries: CoachingSum
                   </small>
                   <small>{summary.callsGraded} calls - {change >= 0 ? "+" : ""}{formatScore(change)} vs prior</small>
                 </span>
-                <span className={index % 2 === 0 ? "badge" : "badge amber"}>
+                <span className={change < 0 ? "badge risk" : change > 0 ? "badge good" : "badge amber"}>
                   {formatScore(summary.averageScore)}
                 </span>
               </button>
@@ -113,7 +136,7 @@ export function SummariesWorkspace({ summaries, reps }: { summaries: CoachingSum
           </div>
         </div>
 
-        <div className="card panel">
+        <div className="card panel accent-focus">
           <div className="panel-header">
             <div>
               <div className="eyebrow">Summary detail</div>
@@ -123,15 +146,15 @@ export function SummariesWorkspace({ summaries, reps }: { summaries: CoachingSum
           </div>
           {latest ? (
             <div className="summary-detail">
-              <div className="action-item">
+              <div className="action-item state-focus">
                 <div className="action-meta">
-                  <span className="badge">{latest.periodType}</span>
+                  <span className="badge info">{latest.periodType}</span>
                   <span className="muted">{latest.callsGraded} calls</span>
                 </div>
                 <h3>{latest.primaryFocus}</h3>
                 <p className="muted">{latest.nextCallFocus}</p>
               </div>
-              <div className="action-item">
+              <div className="action-item state-progress">
                 <div className="action-meta">
                   <span className="badge amber">Target</span>
                   <span>{rep ? formatScore(rep.scores[targetDimension]) : "0.0"} / 7.0</span>
@@ -151,6 +174,19 @@ export function SummariesWorkspace({ summaries, reps }: { summaries: CoachingSum
                   Recheck in the next {period} summary.
                 </span>
               </div>
+              <FeedbackPanel
+                entityType="summary"
+                entityId={latest.id}
+                repId={latest.repId}
+                currentUserId={currentUserId}
+                currentUserName={currentUserName}
+                currentUserRole={currentUserRole}
+                feedback={latest.feedback}
+                feedbackStorageReady={feedbackStorageReady}
+                feedbackStorageMessage={feedbackStorageMessage}
+                title="Summary feedback"
+                subtitle="Rate how useful this summary was and capture what should improve in the next loop."
+              />
             </div>
           ) : (
             <p className="muted">Generate summaries from DB-backed scorecards to populate this panel.</p>
@@ -158,7 +194,7 @@ export function SummariesWorkspace({ summaries, reps }: { summaries: CoachingSum
         </div>
       </div>
 
-      <section className="card panel">
+      <section className="card panel accent-progress">
         <div className="panel-header">
           <div>
             <div className="eyebrow">Dimension history</div>
@@ -168,7 +204,7 @@ export function SummariesWorkspace({ summaries, reps }: { summaries: CoachingSum
         </div>
         <div className="dimension-matrix">
           {dimensionRows.map((row) => (
-            <article key={row.key} className="matrix-row">
+            <article key={row.key} className={`matrix-row ${row.delta < 0 ? "state-risk" : row.delta > 0 ? "state-progress" : "state-flat"}`}>
               <span>
                 <strong>{titleCaseDimension(row.key as RubricKey)}</strong>
                 <small>{row.delta < 0 ? "Retroceding" : row.delta > 0 ? "Improving" : "Flat"}</small>

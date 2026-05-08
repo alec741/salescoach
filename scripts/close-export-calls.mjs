@@ -1,5 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
+import {
+  buildCloseContext,
+  createLeadCacheSession,
+  flushLeadCache,
+  getLead,
+  loadSalesFilterConfig
+} from "./coach/sales-filter.mjs";
 
 const API_BASE = "https://api.close.com/api/v1";
 const root = process.cwd();
@@ -54,6 +61,7 @@ function parseArgs(argv) {
     max: 500,
     out: "data/close/calls.jsonl",
     dryRun: false,
+    includeLeadEnrichment: true,
     includeRecordingUrl: false,
     includeNotes: true
   };
@@ -85,6 +93,9 @@ function parseArgs(argv) {
         break;
       case "--dry-run":
         args.dryRun = true;
+        break;
+      case "--exclude-lead-enrichment":
+        args.includeLeadEnrichment = false;
         break;
       case "--include-recording-url":
         args.includeRecordingUrl = true;
@@ -142,7 +153,7 @@ function normalizeTranscript(transcript) {
   };
 }
 
-function normalizeCall(call, args) {
+function normalizeCall(call, args, closeContext = null) {
   const normalized = {
     id: call.id,
     lead_id: call.lead_id || null,
@@ -163,6 +174,7 @@ function normalizeCall(call, args) {
   };
 
   if (args.includeNotes) normalized.note = call.note || "";
+  if (closeContext) normalized.close_context = closeContext;
   if (args.includeRecordingUrl) {
     normalized.recording_url = call.recording_url || null;
     normalized.voicemail_url = call.voicemail_url || null;
@@ -206,6 +218,13 @@ async function exportCalls(args) {
   const outPath = path.resolve(process.cwd(), args.out);
   const outDir = path.dirname(outPath);
   fs.mkdirSync(outDir, { recursive: true });
+  const apiKey = process.env.CLOSE_API_KEY;
+  if (!apiKey && !args.dryRun) {
+    throw new Error("CLOSE_API_KEY is not set in this shell. Set it before running the export command.");
+  }
+
+  const salesFilterConfig = loadSalesFilterConfig();
+  const leadCache = createLeadCacheSession();
 
   let skip = 0;
   let exported = 0;
@@ -218,17 +237,19 @@ async function exportCalls(args) {
       return;
     }
 
-    const apiKey = process.env.CLOSE_API_KEY;
-    if (!apiKey) {
-      throw new Error("CLOSE_API_KEY is not set in this shell. Set it before running the export command.");
-    }
-
     const payload = await closeFetch(url, apiKey);
     const calls = Array.isArray(payload.data) ? payload.data : [];
 
     for (const call of calls) {
       if (exported >= args.max) break;
-      lines.push(JSON.stringify(normalizeCall(call, args)));
+      let closeContext = null;
+      if (args.includeLeadEnrichment && call.lead_id) {
+        const lead = await getLead(call.lead_id, apiKey, leadCache);
+        closeContext = buildCloseContext(lead, {
+          preferredPipelines: salesFilterConfig.includePipelineNames || []
+        });
+      }
+      lines.push(JSON.stringify(normalizeCall(call, args, closeContext)));
       exported += 1;
     }
 
@@ -236,12 +257,13 @@ async function exportCalls(args) {
     skip += args.limit;
   }
 
+  flushLeadCache(leadCache);
   fs.writeFileSync(outPath, `${lines.join("\n")}${lines.length ? "\n" : ""}`, "utf8");
-  console.log(`Exported ${exported} calls to ${outPath}`);
+  console.log(`Exported ${exported} calls to ${outPath}${args.includeLeadEnrichment ? ` with ${leadCache.fetched} lead fetches` : ""}`);
 }
 
 function printUsage() {
-  console.log(`Usage: node scripts/close-export-calls.mjs [--check-auth] [options]\n\nOptions:\\n  --check-auth                   Verify the API key against Close and print account metadata only.\\n  --since <ISO date>             Include calls created at or after this value.\n  --until <ISO date>             Include calls created at or before this value.\n  --limit <1-100>                Page size. Default: 100.\n  --max <number>                 Maximum calls to export. Default: 500.\n  --out <path>                   Output JSONL path. Default: data/close/calls.jsonl.\n  --dry-run                      Print the request URL and do not call the API.\n  --include-recording-url        Include recording/voicemail URLs. Off by default.\n  --exclude-notes                Exclude call notes from export.\n\nEnvironment:\n  CLOSE_API_KEY                  Required. Close API key. Never commit it.`);
+  console.log(`Usage: node scripts/close-export-calls.mjs [--check-auth] [options]\n\nOptions:\\n  --check-auth                   Verify the API key against Close and print account metadata only.\\n  --since <ISO date>             Include calls created at or after this value.\n  --until <ISO date>             Include calls created at or before this value.\n  --limit <1-100>                Page size. Default: 100.\n  --max <number>                 Maximum calls to export. Default: 500.\n  --out <path>                   Output JSONL path. Default: data/close/calls.jsonl.\n  --dry-run                      Print the request URL and do not call the API.\n  --exclude-lead-enrichment      Skip lead/opportunity enrichment and export raw call activity only.\n  --include-recording-url        Include recording/voicemail URLs. Off by default.\n  --exclude-notes                Exclude call notes from export.\n\nEnvironment:\n  CLOSE_API_KEY                  Required. Close API key. Never commit it.`);
 }
 
 try {

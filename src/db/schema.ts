@@ -20,6 +20,9 @@ export const actionStatus = pgEnum("action_status", ["open", "completed", "dismi
 export const ingestionStatus = pgEnum("ingestion_status", ["running", "succeeded", "failed"]);
 export const reviewStatus = pgEnum("review_status", ["reviewed", "reopened"]);
 export const coachingSessionStatus = pgEnum("coaching_session_status", ["draft", "prepared", "assigned", "completed"]);
+export const pipelineJobStatus = pgEnum("pipeline_job_status", ["queued", "running", "succeeded", "failed", "skipped"]);
+export const deliveryStatus = pgEnum("delivery_status", ["pending", "sent", "failed", "skipped"]);
+export const feedbackSentiment = pgEnum("feedback_sentiment", ["useful", "not_useful", "inaccurate", "accepted", "edited", "dismissed"]);
 
 export const appUsers = pgTable(
   "app_users",
@@ -56,6 +59,25 @@ export const managerRepAssignments = pgTable(
   })
 );
 
+export const rubricVersions = pgTable(
+  "rubric_versions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    version: text("version").notNull().unique(),
+    profileVersion: text("profile_version"),
+    promptVersion: text("prompt_version"),
+    modelProvider: text("model_provider"),
+    modelName: text("model_name"),
+    rubricJson: jsonb("rubric_json").notNull().default({}),
+    active: boolean("active").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    versionIdx: uniqueIndex("rubric_versions_version_idx").on(table.version),
+    activeIdx: index("rubric_versions_active_idx").on(table.active)
+  })
+);
+
 export const calls = pgTable(
   "calls",
   {
@@ -71,7 +93,12 @@ export const calls = pgTable(
     status: text("status"),
     disposition: text("disposition"),
     summaryText: text("summary_text"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+    callType: text("call_type"),
+    outcomeType: text("outcome_type"),
+    outcomeRationale: text("outcome_rationale"),
+    crmOutcomeJson: jsonb("crm_outcome_json").notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
   },
   (table) => ({
     activityIdx: index("calls_activity_at_idx").on(table.activityAt),
@@ -97,6 +124,14 @@ export const callScorecards = pgTable(
     featureDumpControlScore: numeric("feature_dump_control_score", { precision: 4, scale: 2 }).notNull(),
     closeOrNextStepScore: numeric("close_or_next_step_score", { precision: 4, scale: 2 }).notNull(),
     complianceScore: numeric("compliance_score", { precision: 4, scale: 2 }).notNull(),
+    rubricVersionId: uuid("rubric_version_id").references(() => rubricVersions.id, { onDelete: "set null" }),
+    modelName: text("model_name"),
+    promptVersion: text("prompt_version"),
+    profileVersion: text("profile_version"),
+    focusDimension: text("focus_dimension"),
+    callType: text("call_type"),
+    outcomeType: text("outcome_type"),
+    outcomeRationale: text("outcome_rationale"),
     leadSegment: text("lead_segment"),
     topStrength: text("top_strength").notNull(),
     biggestCoachingOpportunity: text("biggest_coaching_opportunity").notNull(),
@@ -166,6 +201,10 @@ export const coachingSummaries = pgTable(
     primaryFocus: text("primary_focus").notNull(),
     nextCallFocus: text("next_call_focus").notNull(),
     summaryMarkdown: text("summary_markdown").notNull(),
+    summaryJson: jsonb("summary_json").notNull().default({}),
+    rubricVersionId: uuid("rubric_version_id").references(() => rubricVersions.id, { onDelete: "set null" }),
+    modelName: text("model_name"),
+    promptVersion: text("prompt_version"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
   },
   (table) => ({
@@ -271,9 +310,124 @@ export const reportArtifactEvents = pgTable(
   })
 );
 
+export const callOutcomes = pgTable(
+  "call_outcomes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    callId: uuid("call_id")
+      .notNull()
+      .references(() => calls.id, { onDelete: "cascade" }),
+    closeLeadId: text("close_lead_id"),
+    closeOpportunityId: text("close_opportunity_id"),
+    pipelineName: text("pipeline_name"),
+    statusLabel: text("status_label"),
+    statusType: text("status_type"),
+    value: numeric("value", { precision: 12, scale: 2 }),
+    valuePeriod: text("value_period"),
+    won: boolean("won").notNull().default(false),
+    lost: boolean("lost").notNull().default(false),
+    closeDate: date("close_date"),
+    opportunityJson: jsonb("opportunity_json").notNull().default({}),
+    refreshedAt: timestamp("refreshed_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    callIdx: uniqueIndex("call_outcomes_call_idx").on(table.callId),
+    closeOpportunityIdx: index("call_outcomes_close_opportunity_idx").on(table.closeOpportunityId),
+    statusIdx: index("call_outcomes_status_idx").on(table.statusType)
+  })
+);
+
+export const coachingFeedback = pgTable(
+  "coaching_feedback",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    entityType: text("entity_type"),
+    entityId: uuid("entity_id"),
+    feedbackType: text("feedback_type").notNull(),
+    callScorecardId: uuid("call_scorecard_id").references(() => callScorecards.id, { onDelete: "cascade" }),
+    coachingSummaryId: uuid("coaching_summary_id").references(() => coachingSummaries.id, { onDelete: "cascade" }),
+    actionItemId: uuid("action_item_id").references(() => coachingActionItems.id, { onDelete: "set null" }),
+    repUserId: uuid("rep_user_id").references(() => appUsers.id, { onDelete: "set null" }),
+    actorKey: text("actor_key"),
+    actorUserId: uuid("actor_user_id").references(() => appUsers.id, { onDelete: "set null" }),
+    actorName: text("actor_name"),
+    actorRole: text("actor_role"),
+    targetRepUserId: uuid("target_rep_user_id").references(() => appUsers.id, { onDelete: "set null" }),
+    sentiment: feedbackSentiment("sentiment").notNull(),
+    usefulnessRating: integer("usefulness_rating"),
+    feedbackText: text("feedback_text"),
+    originalFocusDimension: text("original_focus_dimension"),
+    editedFocusDimension: text("edited_focus_dimension"),
+    note: text("note"),
+    accepted: boolean("accepted").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    entityActorIdx: uniqueIndex("coaching_feedback_entity_actor_idx").on(table.entityType, table.entityId, table.actorKey),
+    scorecardIdx: index("coaching_feedback_scorecard_idx").on(table.callScorecardId),
+    summaryIdx: index("coaching_feedback_summary_idx").on(table.coachingSummaryId),
+    repCreatedIdx: index("coaching_feedback_rep_created_idx").on(table.targetRepUserId, table.createdAt)
+  })
+);
+
+export const deliveryEvents = pgTable(
+  "delivery_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    channel: text("channel").notNull(),
+    audience: text("audience").notNull(),
+    status: deliveryStatus("status").notNull().default("pending"),
+    reportArtifactId: uuid("report_artifact_id").references(() => reportArtifacts.id, { onDelete: "set null" }),
+    callScorecardId: uuid("call_scorecard_id").references(() => callScorecards.id, { onDelete: "set null" }),
+    repUserId: uuid("rep_user_id").references(() => appUsers.id, { onDelete: "set null" }),
+    managerUserId: uuid("manager_user_id").references(() => appUsers.id, { onDelete: "set null" }),
+    destination: text("destination"),
+    externalId: text("external_id"),
+    payloadJson: jsonb("payload_json").notNull().default({}),
+    errorMessage: text("error_message"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    sentAt: timestamp("sent_at", { withTimezone: true })
+  },
+  (table) => ({
+    reportIdx: index("delivery_events_report_idx").on(table.reportArtifactId),
+    scorecardIdx: index("delivery_events_scorecard_idx").on(table.callScorecardId),
+    repCreatedIdx: index("delivery_events_rep_created_idx").on(table.repUserId, table.createdAt),
+    externalIdx: index("delivery_events_external_idx").on(table.externalId)
+  })
+);
+
+export const pipelineJobs = pgTable(
+  "pipeline_jobs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    jobType: text("job_type").notNull(),
+    status: pipelineJobStatus("status").notNull().default("queued"),
+    source: text("source").notNull().default("local"),
+    scheduledFor: timestamp("scheduled_for", { withTimezone: true }),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    idempotencyKey: text("idempotency_key").notNull().unique(),
+    payloadJson: jsonb("payload_json").notNull().default({}),
+    resultJson: jsonb("result_json").notNull().default({}),
+    errorMessage: text("error_message"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    jobStatusIdx: index("pipeline_jobs_status_idx").on(table.status, table.scheduledFor),
+    idempotencyIdx: uniqueIndex("pipeline_jobs_idempotency_idx").on(table.idempotencyKey)
+  })
+);
+
 export const ingestionRuns = pgTable("ingestion_runs", {
   id: uuid("id").defaultRandom().primaryKey(),
   source: text("source").notNull(),
+  runType: text("run_type").notNull().default("manual"),
+  windowStart: timestamp("window_start", { withTimezone: true }),
+  windowEnd: timestamp("window_end", { withTimezone: true }),
+  provider: text("provider"),
+  modelName: text("model_name"),
+  metadataJson: jsonb("metadata_json").notNull().default({}),
   startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
   finishedAt: timestamp("finished_at", { withTimezone: true }),
   status: ingestionStatus("status").notNull().default("running"),

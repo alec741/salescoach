@@ -16,7 +16,15 @@ export default async function RepSummariesPage() {
       subtitle="Compare daily, weekly, monthly, and quarterly progress so every focus area has a visible trend."
     >
       <div className="page-section">
-        <SummariesWorkspace summaries={data.summaries} reps={data.reps} />
+        <SummariesWorkspace
+          summaries={data.summaries}
+          reps={data.reps}
+          currentUserId={data.currentUser.id}
+          currentUserName={data.currentUser.displayName}
+          currentUserRole={data.currentUser.role}
+          feedbackStorageReady={data.feedbackStorageReady}
+          feedbackStorageMessage={data.feedbackStorageMessage}
+        />
         <TargetStrip reps={data.reps} />
       </div>
     </AppShell>

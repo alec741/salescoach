@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+/config/slack-rep-targets.local.json
 
 # CRM exports, transcripts, recordings, and generated coaching data
 /data/close/*

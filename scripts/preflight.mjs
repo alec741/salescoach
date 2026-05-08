@@ -7,8 +7,11 @@ const requiredForProduction = [
   "NEON_AUTH_COOKIE_SECRET",
   "OPENAI_API_KEY",
   "OPENAI_MODEL",
-  "SLACK_BOT_TOKEN",
-  "SLACK_SIGNING_SECRET"
+  "SLACK_MANAGER_CHANNEL_ID"
+];
+
+const requiredAnyForProduction = [
+  ["SLACK_BOT_TOKEN", "SLACK_ACCESS_TOKEN"]
 ];
 
 const routes = ["/manager", "/rep", "/rep/calls", "/rep/summaries", "/manager/reports", "/settings/users"];
@@ -86,7 +89,24 @@ async function smokeRoutes() {
 
 async function main() {
   const missing = requiredForProduction.filter((name) => !process.env[name]);
-  console.log(JSON.stringify({ env: { missing, configured: requiredForProduction.filter((name) => process.env[name]) } }, null, 2));
+  const missingAny = requiredAnyForProduction
+    .filter((group) => !group.some((name) => process.env[name]))
+    .map((group) => group.join(" or "));
+  console.log(
+    JSON.stringify(
+      {
+        env: {
+          missing: [...missing, ...missingAny],
+          configured: [
+            ...requiredForProduction.filter((name) => process.env[name]),
+            ...requiredAnyForProduction.flatMap((group) => group.filter((name) => process.env[name]))
+          ]
+        }
+      },
+      null,
+      2
+    )
+  );
 
   const checks = [
     ["lint", ["run", "lint"]],

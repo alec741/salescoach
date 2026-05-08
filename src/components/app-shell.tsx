@@ -111,9 +111,10 @@ export function PendingAccess() {
   );
 }
 
-export function MetricCard({ label, value, note }: { label: string; value: string; note: string }) {
+export function MetricCard({ label, value, note, tone }: { label: string; value: string; note: string; tone?: "focus" | "risk" | "progress" | "report" | "admin" }) {
+  const accentClass = tone ? ` accent-${tone}` : "";
   return (
-    <article className="card metric-card">
+    <article className={`card metric-card${accentClass}`}>
       <div className="metric-label">{label}</div>
       <div className="metric-value">{value}</div>
       <div className="metric-note">{note}</div>

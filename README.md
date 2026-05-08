@@ -39,7 +39,7 @@ Sales Collective-specific context should live only in `config/companies/sales-co
 
 ## Close CRM Call Exports
 
-Close call activity exports are supported through `npm run close:calls:export`. See `docs/close-crm-ingestion.md`. Exported CRM data is written under `data/close` and ignored by git.
+Close call activity exports are supported through `npm run close:calls:export`. The export now includes a normalized `close_context` block with lead opportunity pipeline, status, value, and won or lost signals unless you pass `--exclude-lead-enrichment`. See `docs/close-crm-ingestion.md`. Exported CRM data is written under `data/close` and ignored by git.
 
 ## Local Environment
 
@@ -52,6 +52,12 @@ Use `npm run coach:interactive` to list Close calls and generate a Codex-ready r
 ## PDF Coaching Reports
 
 Use `npm run reports:pdf` to generate manager, rep, scorecard, and combined coaching PDFs from local report outputs. See `docs/pdf-report-generation.md`.
+
+## Scheduled Coaching Automation
+
+Use `npm run coach:grading:30m` for the 30-minute weekday grading pass, `npm run coach:eod` for the end-of-day daily summary run, and `npm run coach:summary:weekly` or `npm run coach:summary:monthly` for DB-backed summary refreshes plus optional Slack delivery for manager or rep audiences. See `docs/automated-coaching-pipeline.md`.
+
+For Vercel production deployment, protected cron endpoints now exist at `/api/cron/grading`, `/api/cron/summaries/daily`, `/api/cron/summaries/weekly`, `/api/cron/summaries/monthly`, and `/api/cron/summaries/quarterly`. Set `CRON_SECRET` in the Vercel project so Vercel sends `Authorization: Bearer <CRON_SECRET>` automatically, or provide the same value yourself with `Authorization` or `x-cron-secret` when manually testing the routes.
 
 ## Coaching Report Cadence
 
