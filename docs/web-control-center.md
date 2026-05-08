@@ -17,7 +17,7 @@ Set these environment variables:
 
 ```dotenv
 DATABASE_URL=postgresql://...
-NEON_AUTH_BASE_URL=https://...
+NEON_AUTH_BASE_URL=https://ep-xxx.neonauth.us-east-1.aws.neon.tech/neondb/auth
 NEON_AUTH_COOKIE_SECRET=at-least-32-characters
 ```
 

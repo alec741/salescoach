@@ -3,6 +3,34 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const authEnabled = Boolean(process.env.NEON_AUTH_BASE_URL && process.env.NEON_AUTH_COOKIE_SECRET);
 
+function resolveNeonAuthBaseUrl() {
+  const rawBaseUrl = process.env.NEON_AUTH_BASE_URL;
+  if (!rawBaseUrl) return rawBaseUrl;
+
+  try {
+    const authUrl = new URL(rawBaseUrl);
+    const normalizedPath = authUrl.pathname.replace(/\/+$/, "");
+    if (normalizedPath.endsWith("/auth")) return authUrl.toString().replace(/\/+$/, "");
+
+    if (normalizedPath && normalizedPath !== "/") {
+      authUrl.pathname = `${normalizedPath}/auth`;
+      return authUrl.toString().replace(/\/+$/, "");
+    }
+
+    if (process.env.DATABASE_URL) {
+      const databaseName = new URL(process.env.DATABASE_URL).pathname.replace(/^\/+/, "").split("?")[0];
+      if (databaseName) {
+        authUrl.pathname = `/${databaseName}/auth`;
+        return authUrl.toString().replace(/\/+$/, "");
+      }
+    }
+  } catch {
+    return rawBaseUrl;
+  }
+
+  return rawBaseUrl;
+}
+
 function disabledAuth(): NeonAuth {
   return {
     handler: () => {
@@ -26,7 +54,7 @@ function disabledAuth(): NeonAuth {
 
 export const auth = authEnabled
   ? createNeonAuth({
-      baseUrl: process.env.NEON_AUTH_BASE_URL!,
+      baseUrl: resolveNeonAuthBaseUrl()!,
       cookies: {
         secret: process.env.NEON_AUTH_COOKIE_SECRET!
       }

@@ -660,7 +660,7 @@ async function loadPipelineMonitoring(db: ReturnType<typeof getDb>, role: UserRo
   };
 }
 
-export async function getCurrentAppUser(preferredRole: "rep" | "manager" | "admin" = "manager"): Promise<AppUser | null> {
+export async function getCurrentAppUser(_preferredRole: "rep" | "manager" | "admin" = "manager"): Promise<AppUser | null> {
   if (!hasDatabase) return null;
   if (!isNeonAuthConfigured) return null;
 

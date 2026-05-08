@@ -14,10 +14,12 @@ Copy-Item .env.example .env
 
 ```dotenv
 DATABASE_URL=postgresql://...
-NEON_AUTH_BASE_URL=https://...
+NEON_AUTH_BASE_URL=https://ep-xxx.neonauth.us-east-1.aws.neon.tech/neondb/auth
 NEON_AUTH_COOKIE_SECRET=generate_a_random_secret_at_least_32_characters
 CLOSE_API_KEY=your_rotated_close_key_here
 ```
+
+`NEON_AUTH_BASE_URL` is not just the bare `neonauth` host. It must include the database name and `/auth` path. If the value is missing that path, Google sign-in can fail with `Route POST:/sign-in/social not found`.
 
 3. Add the model provider for automated grading and summaries when you are ready to run the full coaching backfill:
 
