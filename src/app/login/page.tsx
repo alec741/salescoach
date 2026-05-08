@@ -44,15 +44,11 @@ export default function LoginPage() {
             </div>
           ) : (
             <div className="action-item" style={{ marginTop: 20 }}>
-              <strong>Use sample dashboards while OAuth is unconfigured.</strong>
+              <strong>OAuth is required for dashboard access.</strong>
               <p className="muted" style={{ marginTop: 8 }}>
-                Set `NEON_AUTH_BASE_URL` and `NEON_AUTH_COOKIE_SECRET` to enable OAuth. Until then, protected dashboards run
-                with local sample data for implementation review.
+                Set `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET`, and `DATABASE_URL` to connect the dashboards to mapped
+                Postgres users and coaching data.
               </p>
-              <div className="detail-actions">
-                <a className="button" href="/rep">Open rep dashboard</a>
-                <a className="button secondary" href="/manager">Open manager view</a>
-              </div>
             </div>
           )}
         </div>

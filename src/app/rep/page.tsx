@@ -11,7 +11,7 @@ export default async function RepDashboardPage() {
     <AppShell user={data.currentUser} active="/rep" title="Your next-call coaching plan" subtitle="Track your score, focus area, target, and the behavior to apply on the next sales call.">
       <div className="page-section">
         <DashboardOverview data={data} mode="rep" />
-        <TargetStrip reps={data.reps} />
+        <TargetStrip reps={data.reps} targets={data.targets} />
       </div>
     </AppShell>
   );

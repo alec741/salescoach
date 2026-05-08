@@ -11,7 +11,7 @@ export default async function ManagerDashboardPage() {
     <AppShell user={data.currentUser} active="/manager" title="Team performance and coaching priorities" subtitle="Scan team health, identify the highest-leverage coaching behavior, and open rep-level review queues.">
       <div className="page-section">
         <DashboardOverview data={data} mode="manager" />
-        <TargetStrip reps={data.reps} />
+        <TargetStrip reps={data.reps} targets={data.targets} />
       </div>
     </AppShell>
   );

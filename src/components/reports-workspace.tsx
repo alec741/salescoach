@@ -199,7 +199,7 @@ export function ReportsWorkspace({ data }: { data: DashboardData }) {
               <span className="timeline-marker" />
               <span>
                 <strong>{report.title}</strong>
-                <small>{report.storagePath ? "PDF generated and ready to send" : "Markdown generated, PDF pending"}</small>
+                <small>{report.storagePath ? "PDF generated and ready to send" : "Markdown generated, PDF pending"} - {formatDateTime(report.createdAt)}</small>
               </span>
               <span className={report.storagePath ? "badge info" : "badge amber"}>{report.periodType}</span>
             </div>
@@ -247,11 +247,11 @@ export function ReportsWorkspace({ data }: { data: DashboardData }) {
             </p>
             <div className="artifact-preview">
               <strong>What changed</strong>
-              <p className="muted">Quantification remains the primary coaching theme; compliance language is queued for manager review before send.</p>
+              <p className="muted">{report.contentPreview || "No report preview is stored for this artifact yet."}</p>
             </div>
             <div className="artifact-meta">
               <span><strong>Audience</strong><small>{report.owner === "Team" ? "Managers" : "Rep + manager"}</small></span>
-              <span><strong>Last export</strong><small>{report.storagePath ? "Today, 8:30 AM" : "Pending PDF"}</small></span>
+              <span><strong>Generated</strong><small>{formatDateTime(report.createdAt)}</small></span>
               <span><strong>Status</strong><small>{report.storagePath ? "Generated" : "Needs export"}</small></span>
             </div>
             <div className="detail-actions">

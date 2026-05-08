@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { ArrowUpRight, CalendarRange, Clock, Target } from "lucide-react";
 import { FeedbackPanel } from "./feedback-panel";
 import { formatDate, formatScore, titleCaseDimension } from "@/lib/format";
-import { rubricKeys, type CoachingSummary, type PeriodType, type RepPerformance, type RubricKey, type UserRole } from "@/lib/types";
+import { rubricKeys, type CoachingSummary, type CoachingTarget, type PeriodType, type RepPerformance, type RubricKey, type UserRole } from "@/lib/types";
 
 const periods: PeriodType[] = ["daily", "weekly", "monthly", "quarterly"];
 
@@ -15,7 +15,8 @@ export function SummariesWorkspace({
   currentUserName,
   currentUserRole,
   feedbackStorageReady,
-  feedbackStorageMessage
+  feedbackStorageMessage,
+  targets
 }: {
   summaries: CoachingSummary[];
   reps: RepPerformance[];
@@ -24,6 +25,7 @@ export function SummariesWorkspace({
   currentUserRole: UserRole;
   feedbackStorageReady: boolean;
   feedbackStorageMessage?: string;
+  targets: CoachingTarget[];
 }) {
   const [period, setPeriod] = useState<PeriodType>("daily");
   const [selectedSummaryId, setSelectedSummaryId] = useState<string>("");
@@ -31,6 +33,8 @@ export function SummariesWorkspace({
   const latest = visible.find((summary) => summary.id === selectedSummaryId) || visible[0] || summaries[0];
   const rep = reps.find((item) => item.id === latest?.repId) || reps[0];
   const targetDimension = latest?.primaryFocusDimension || rep?.primaryFocusDimension || "quantification";
+  const activeTarget = targets.find((target) => target.repId === rep?.id && target.dimension === targetDimension) || targets.find((target) => target.repId === rep?.id);
+  const targetScore = activeTarget?.targetScore || 0;
   const previous = latest
     ? visible.find((summary) => summary.repId === latest.repId && summary.id !== latest.id) ||
       summaries.find((summary) => summary.repId === latest.repId && summary.id !== latest.id)
@@ -157,11 +161,11 @@ export function SummariesWorkspace({
               <div className="action-item state-progress">
                 <div className="action-meta">
                   <span className="badge amber">Target</span>
-                  <span>{rep ? formatScore(rep.scores[targetDimension]) : "0.0"} / 7.0</span>
+                  <span>{activeTarget && rep ? `${formatScore(rep.scores[activeTarget.dimension])} / ${formatScore(activeTarget.targetScore)}` : "No active target"}</span>
                 </div>
-                <h3>{rep ? titleCaseDimension(targetDimension) : "Quantification"}</h3>
-                <div className="score-bar" role="meter" aria-label="Target progress" aria-valuemin={0} aria-valuemax={7} aria-valuenow={rep ? Number(rep.scores[targetDimension].toFixed(1)) : 0}>
-                  <span style={{ width: `${rep ? Math.min(100, (rep.scores[targetDimension] / 7) * 100) : 0}%` }} />
+                <h3>{activeTarget ? titleCaseDimension(activeTarget.dimension) : "No target configured"}</h3>
+                <div className="score-bar" role="meter" aria-label="Target progress" aria-valuemin={0} aria-valuemax={targetScore || 10} aria-valuenow={activeTarget && rep ? Number(rep.scores[activeTarget.dimension].toFixed(1)) : 0}>
+                  <span style={{ width: `${activeTarget && rep && targetScore ? Math.min(100, (rep.scores[activeTarget.dimension] / targetScore) * 100) : 0}%` }} />
                 </div>
               </div>
               <div className="next-steps">

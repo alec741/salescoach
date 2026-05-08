@@ -86,7 +86,7 @@ Hosted summary routes keep the local gating behavior:
 - Monthly summary runs only on the last business day of the month unless `force=1`
 - Quarterly summary runs only on the last business day of March, June, September, or December unless `force=1`
 
-`vercel.json` includes UTC cron schedules for these routes:
+`vercel.json` does not register these schedules by default so the app can deploy on Vercel projects without paid cron capacity. After the project plan supports the required cadence, add UTC cron schedules for these routes:
 
 - Grading: `*/30 * * * 1-5`
 - Daily summary: `30 23 * * 1-5`

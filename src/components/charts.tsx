@@ -2,6 +2,14 @@ import { titleCaseDimension, formatScore } from "@/lib/format";
 import { rubricKeys, type DashboardData, type RubricKey } from "@/lib/types";
 
 export function ScoreTrend({ data, label = "Coaching score trend" }: { data: DashboardData["scoreTrend"]; label?: string }) {
+  if (!data.length) {
+    return (
+      <div className="chart-empty" role="status">
+        No score trend yet. Grade calls and generate summaries to populate this chart.
+      </div>
+    );
+  }
+
   const width = 640;
   const height = 192;
   const points = data.map((point, index) => {

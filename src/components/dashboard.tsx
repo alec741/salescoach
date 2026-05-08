@@ -5,12 +5,12 @@ import { CompleteActionButton } from "./complete-action-button";
 import { DimensionTrends } from "./dimension-trends";
 import { EmptyState, MetricCard, PageBadge } from "./app-shell";
 import { formatDate, formatPercent, formatScore, initials, titleCaseDimension } from "@/lib/format";
-import type { CallRow, CoachingAction, CoachingSummary, DashboardData, RepPerformance } from "@/lib/types";
+import type { CallRow, CoachingAction, CoachingSummary, CoachingTarget, DashboardData, RepPerformance } from "@/lib/types";
 
 export function DashboardOverview({ data, mode }: { data: DashboardData; mode: "rep" | "manager" }) {
   const leverageFocusLabel = data.teamFocusDimensions.length
     ? data.teamFocusDimensions.map((dimension) => titleCaseDimension(dimension)).join(" + ")
-    : "Quantification";
+    : "No focus yet";
   const highestRisk = data.reps.slice().sort((a, b) => b.complianceFlags - a.complianceFlags)[0];
   const biggestMover = data.reps.slice().sort((a, b) => b.improvement - a.improvement)[0] || data.reps[0];
   return (
@@ -18,7 +18,7 @@ export function DashboardOverview({ data, mode }: { data: DashboardData; mode: "
       <div className={`decision-brief card ${mode === "manager" ? "accent-risk" : "accent-focus"}`}>
         <div>
           <div className="eyebrow">{mode === "rep" ? "Next action" : "Manager review queue"}</div>
-          <h2>{mode === "rep" ? `Practice ${leverageFocusLabel} on the next call block` : `Start with ${highestRisk?.name || "the highest-risk rep"}`}</h2>
+          <h2>{mode === "rep" ? (data.totalCalls ? `Practice ${leverageFocusLabel} on the next call block` : "No graded calls yet") : `Start with ${highestRisk?.name || "the highest-risk rep"}`}</h2>
           <p className="muted">
             {mode === "rep"
               ? data.teamFocusRationale
@@ -26,7 +26,7 @@ export function DashboardOverview({ data, mode }: { data: DashboardData; mode: "
           </p>
         </div>
         <div className="brief-actions">
-          <Link className="button" href={mode === "rep" ? "/rep/calls" : `/manager/reps/${highestRisk?.id || data.reps[0]?.id || ""}`}>
+          <Link className="button" href={mode === "rep" ? "/rep/calls" : highestRisk ? `/manager/reps/${highestRisk.id}` : "/settings/users"}>
             Review evidence
             <ArrowRight size={15} />
           </Link>
@@ -159,7 +159,7 @@ export function TeamActionQueue({ reps, actions }: { reps: RepPerformance[]; act
               <strong>{rep.name}</strong>
               <span className="badge risk">{rep.complianceFlags} flags</span>
             </div>
-            <p className="muted">Coach {titleCaseDimension(rep.primaryFocusDimension)} and check compliance language.</p>
+            <p className="muted">{rep.nextCallFocus}</p>
           </Link>
         ))}
         {actions.slice(0, 1).map((action) => (
@@ -185,7 +185,6 @@ export function CoachingFocus({
   actions: CoachingAction[];
   mode?: "rep" | "manager";
 }) {
-  const labels = ["Practice", "Apply", "Review"];
   return (
     <section className="card panel accent-focus">
       <div className="panel-header">
@@ -197,19 +196,15 @@ export function CoachingFocus({
       </div>
       <p>{opportunity}</p>
       <div className="action-list" style={{ marginTop: 14 }}>
-        {actions.slice(0, 3).map((action, index) => (
+        {actions.length ? actions.slice(0, 3).map((action, index) => (
           <article key={action.id} className={`action-item ${index === 0 ? "state-focus" : index === 1 ? "state-progress" : "state-risk"}`}>
             <div className="action-meta">
               <span className={index === 2 ? "badge info" : "badge"}>{titleCaseDimension(action.dimension)}</span>
-              <span className="muted">{labels[index] || action.status}</span>
+              <span className="muted">{action.status}</span>
             </div>
             <h3>{action.actionText}</h3>
             <p className="muted" style={{ marginTop: 8 }}>
-              {index === 0
-                ? action.whyItMatters
-                : index === 1
-                  ? "Use it before plan, rate, promotion, or platform walkthrough language."
-                  : "After the call block, compare whether the quantified pain changed the sales conversation."}
+              {action.whyItMatters}
             </p>
             {mode === "rep" ? (
               <div className="detail-actions" style={{ marginTop: 12 }}>
@@ -217,7 +212,7 @@ export function CoachingFocus({
               </div>
             ) : null}
           </article>
-        ))}
+        )) : <p className="muted">No active coaching actions are in the database for this view.</p>}
       </div>
     </section>
   );
@@ -354,7 +349,7 @@ export function RecentCalls({ calls }: { calls: CallRow[] }) {
         <Headphones size={20} color="#1d7f74" />
       </div>
       <div className="table-wrap">
-        <table>
+        {calls.length ? <table>
           <thead>
             <tr>
               <th>Date</th>
@@ -373,7 +368,7 @@ export function RecentCalls({ calls }: { calls: CallRow[] }) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table> : <p className="muted">No graded calls are available yet.</p>}
       </div>
     </section>
   );
@@ -390,7 +385,7 @@ export function SummaryList({ summaries }: { summaries: CoachingSummary[] }) {
         <FileText size={20} color="#1d7f74" />
       </div>
       <div className="summary-list">
-        {summaries.map((summary) => (
+        {summaries.length ? summaries.map((summary) => (
           <article key={summary.id} className="action-item state-progress">
             <div className="action-meta">
               <span className="badge">{summary.periodType}</span>
@@ -401,13 +396,15 @@ export function SummaryList({ summaries }: { summaries: CoachingSummary[] }) {
               {summary.nextCallFocus}
             </p>
           </article>
-        ))}
+        )) : <p className="muted">No coaching summaries are available yet.</p>}
       </div>
     </section>
   );
 }
 
-export function TargetStrip({ reps }: { reps: RepPerformance[] }) {
+export function TargetStrip({ reps, targets }: { reps: RepPerformance[]; targets: CoachingTarget[] }) {
+  const repsById = new Map(reps.map((rep) => [rep.id, rep]));
+  const visibleTargets = targets.filter((target) => repsById.has(target.repId)).slice(0, 4);
   return (
     <section className="card wide-panel accent-focus">
       <div className="panel-header">
@@ -418,23 +415,25 @@ export function TargetStrip({ reps }: { reps: RepPerformance[] }) {
         <CheckCircle2 size={20} color="#1d7f74" />
       </div>
       <div className="category-grid">
-        {reps.slice(0, 4).map((rep, index) => {
-          const focusDimension = rep.primaryFocusDimension;
+        {visibleTargets.length ? visibleTargets.map((target) => {
+          const rep = repsById.get(target.repId);
+          if (!rep) return null;
+          const currentScore = rep.scores[target.dimension] || 0;
           return (
-          <article key={rep.id} className="category-card">
+          <article key={target.id} className="category-card">
             <div className="metric-label">{rep.name}</div>
-            <h3 style={{ marginTop: 8 }}>Raise {titleCaseDimension(focusDimension)} to 7.0</h3>
+            <h3 style={{ marginTop: 8 }}>Raise {titleCaseDimension(target.dimension)} to {formatScore(target.targetScore)}</h3>
             <p className="muted" style={{ marginTop: 8 }}>
-              Current: {formatScore(rep.scores[focusDimension])}
+              Current: {formatScore(currentScore)}
             </p>
-            <div className="score-bar" role="meter" aria-label={`${rep.name} target progress`} aria-valuemin={0} aria-valuemax={7} aria-valuenow={Number(rep.scores[focusDimension].toFixed(1))}>
-              <span style={{ width: `${Math.min(100, (rep.scores[focusDimension] / 7) * 100)}%` }} />
+            <div className="score-bar" role="meter" aria-label={`${rep.name} target progress`} aria-valuemin={0} aria-valuemax={target.targetScore} aria-valuenow={Number(currentScore.toFixed(1))}>
+              <span style={{ width: `${target.targetScore ? Math.min(100, (currentScore / target.targetScore) * 100) : 0}%` }} />
             </div>
             <p className="muted" style={{ marginTop: 8, fontSize: 13 }}>
-              Due {index < 2 ? "this week" : "this month"} - {rep.calls} scored calls
+              {target.periodType} target through {formatDate(target.periodEnd)} - {rep.calls} scored calls
             </p>
           </article>
-        );})}
+        );}) : <p className="muted">No active coaching targets are configured in the database.</p>}
       </div>
     </section>
   );

@@ -24,8 +24,9 @@ export default async function RepSummariesPage() {
           currentUserRole={data.currentUser.role}
           feedbackStorageReady={data.feedbackStorageReady}
           feedbackStorageMessage={data.feedbackStorageMessage}
+          targets={data.targets}
         />
-        <TargetStrip reps={data.reps} />
+        <TargetStrip reps={data.reps} targets={data.targets} />
       </div>
     </AppShell>
   );

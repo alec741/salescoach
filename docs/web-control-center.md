@@ -9,7 +9,7 @@ npm install
 npm run dev -- -p 3000
 ```
 
-Without `DATABASE_URL` and Neon Auth env vars, the app renders from the existing local sample coaching outputs. This keeps UI review possible before a Neon project is connected.
+Dashboards require `DATABASE_URL` and Neon Auth env vars. When the database is connected but empty, the app renders empty states instead of sample coaching data.
 
 ## Neon Setup
 

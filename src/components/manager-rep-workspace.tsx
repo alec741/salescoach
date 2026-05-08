@@ -339,7 +339,7 @@ export function ManagerRepWorkspace({ data }: { data: DashboardData }) {
       </div>
 
       <CoachingFocus opportunity={data.teamOpportunity} actions={data.actions} mode="manager" />
-      <TargetStrip reps={data.reps} />
+      <TargetStrip reps={data.reps} targets={data.targets} />
       <section className="card panel accent-report">
         <div className="panel-header">
           <div>

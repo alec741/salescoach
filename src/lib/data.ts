@@ -7,6 +7,7 @@ import {
   callOutcomes,
   callReviews,
   callScorecards,
+  coachingTargets,
   coachingActionItems,
   coachingSummaries,
   complianceFlags,
@@ -18,7 +19,6 @@ import {
   reportArtifacts
 } from "@/db/schema";
 import { chooseCoachingFocus, strongestScoreDimension, weakestScoreDimension } from "./coaching-focus";
-import { getMockDashboardData } from "./mock-data";
 import {
   rubricKeys,
   type AppUser,
@@ -26,6 +26,7 @@ import {
   type CallRow,
   type CrmOutcomeBucket,
   type CoachingFeedback,
+  type CoachingTarget,
   type DashboardData,
   type DimensionTrendPoint,
   type ManagerFocusDecision,
@@ -303,6 +304,53 @@ function emptyMonitoring(): PipelineMonitoring {
     latestGradeRun: null,
     incidents: []
   };
+}
+
+function emptyDashboardData(currentUser: AppUser, monitoring: PipelineMonitoring, overrides: Partial<DashboardData> = {}): DashboardData {
+  const scores = emptyScores();
+  return {
+    currentUser,
+    reps: [],
+    teamAverage: 0,
+    totalCalls: 0,
+    complianceFlags: 0,
+    teamOpportunity: "No graded calls yet.",
+    teamFocusDimensions: [],
+    teamFocusRationale: "Import and grade calls to generate coaching focus areas.",
+    categoryAverages: scores,
+    teamOutcomes: emptyOutcomeSummary(),
+    scoreTrend: [],
+    dimensionTrends: {
+      daily: [],
+      weekly: [],
+      monthly: [],
+      quarterly: []
+    },
+    actions: [],
+    targets: [],
+    calls: [],
+    summaries: [],
+    reports: [],
+    monitoring,
+    feedbackStorageReady: false,
+    feedbackStorageMessage: `Create public.${feedbackTableName} to persist scorecard and summary feedback.`,
+    ...overrides
+  };
+}
+
+function reportTitle(reportType: string) {
+  return reportType.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function reportPreview(markdown: string | null) {
+  if (!markdown) return null;
+  const firstParagraph = markdown
+    .replace(/^#+\s+/gm, "")
+    .split(/\n\s*\n/)
+    .map((part) => part.replace(/\s+/g, " ").trim())
+    .find(Boolean);
+  if (!firstParagraph) return null;
+  return firstParagraph.length > 220 ? `${firstParagraph.slice(0, 217)}...` : firstParagraph;
 }
 
 function parseManagerSessionNotes(value: string | null) {
@@ -613,9 +661,7 @@ async function loadPipelineMonitoring(db: ReturnType<typeof getDb>, role: UserRo
 }
 
 export async function getCurrentAppUser(preferredRole: "rep" | "manager" | "admin" = "manager"): Promise<AppUser | null> {
-  if (!hasDatabase) {
-    return getMockDashboardData(preferredRole).currentUser;
-  }
+  if (!hasDatabase) return null;
   if (!isNeonAuthConfigured) return null;
 
   const { data: session } = await auth.getSession();
@@ -662,7 +708,7 @@ export async function getDashboardData(options: {
   roleHint?: "rep" | "manager" | "admin";
   repId?: string;
 } = {}): Promise<DashboardData | null> {
-  if (!hasDatabase) return getMockDashboardData(options.roleHint || "manager", options.repId);
+  if (!hasDatabase) return null;
 
   try {
     const currentUser = await getCurrentAppUser(options.roleHint || "manager");
@@ -677,19 +723,7 @@ export async function getDashboardData(options: {
     const allowedUuidRepIds = allowedRepIds.filter(isUuid);
 
     if (!allowedUuidRepIds.length) {
-      return {
-        ...getMockDashboardData(currentUser.role, options.repId),
-        currentUser,
-        reps: [],
-        calls: [],
-        summaries: [],
-        actions: [],
-        reports: [],
-        teamOutcomes: emptyOutcomeSummary(),
-        monitoring,
-        feedbackStorageReady: false,
-        feedbackStorageMessage: `Create public.${feedbackTableName} to persist scorecard and summary feedback.`
-      };
+      return emptyDashboardData(currentUser, monitoring);
     }
 
     const allowedRepRows = await db
@@ -705,18 +739,7 @@ export async function getDashboardData(options: {
     const scopedRepIds = repRows.map((rep) => rep.id);
 
     if (!scopedRepIds.length) {
-      return {
-        ...getMockDashboardData(currentUser.role),
-        currentUser,
-        reps: [],
-        calls: [],
-        summaries: [],
-        actions: [],
-        teamOutcomes: emptyOutcomeSummary(),
-        monitoring,
-        feedbackStorageReady: false,
-        feedbackStorageMessage: `Create public.${feedbackTableName} to persist scorecard and summary feedback.`
-      };
+      return emptyDashboardData(currentUser, monitoring);
     }
 
     const scoreRows = await db
@@ -1018,6 +1041,21 @@ export async function getDashboardData(options: {
       .where(and(inArray(coachingActionItems.repUserId, scopedRepIds), eq(coachingActionItems.status, "open")))
       .limit(20);
 
+    const targetRows = await db
+      .select({
+        id: coachingTargets.id,
+        repId: coachingTargets.repUserId,
+        dimension: coachingTargets.dimension,
+        targetScore: coachingTargets.targetScore,
+        periodType: coachingTargets.periodType,
+        periodStart: coachingTargets.periodStart,
+        periodEnd: coachingTargets.periodEnd,
+        status: coachingTargets.status
+      })
+      .from(coachingTargets)
+      .where(and(inArray(coachingTargets.repUserId, scopedRepIds), eq(coachingTargets.status, "active")))
+      .orderBy(desc(coachingTargets.periodEnd));
+
     const reports = await db
       .select({
         id: reportArtifacts.id,
@@ -1026,6 +1064,8 @@ export async function getDashboardData(options: {
         periodStart: reportArtifacts.periodStart,
         periodEnd: reportArtifacts.periodEnd,
         storagePath: reportArtifacts.storagePath,
+        contentMarkdown: reportArtifacts.contentMarkdown,
+        createdAt: reportArtifacts.createdAt,
         repUserId: reportArtifacts.repUserId,
         managerUserId: reportArtifacts.managerUserId,
         repName: appUsers.displayName
@@ -1085,19 +1125,29 @@ export async function getDashboardData(options: {
     const totalComplianceFlags = repsWithSessions.reduce((sum, rep) => sum + rep.complianceFlags, 0);
     const teamFocus = chooseCoachingFocus(categoryAverages, totalComplianceFlags, totalCalls);
     const dimensionTrends = buildDimensionTrends(summaries, categoryAverages);
+    const targetData: CoachingTarget[] = targetRows.map((target) => ({
+      id: target.id,
+      repId: target.repId,
+      dimension: target.dimension as RubricKey,
+      targetScore: toNumber(target.targetScore),
+      periodType: target.periodType,
+      periodStart: target.periodStart,
+      periodEnd: target.periodEnd,
+      status: target.status
+    }));
     return {
       currentUser,
       reps: repsWithSessions,
       teamAverage,
       totalCalls,
       complianceFlags: totalComplianceFlags,
-      teamOpportunity: teamFocus.headline,
-      teamFocusDimensions: teamFocus.dimensions,
-      teamFocusRationale: teamFocus.rationale,
+      teamOpportunity: totalCalls ? teamFocus.headline : "No graded calls yet.",
+      teamFocusDimensions: totalCalls ? teamFocus.dimensions : [],
+      teamFocusRationale: totalCalls ? teamFocus.rationale : "Import and grade calls to generate coaching focus areas.",
       categoryAverages,
       teamOutcomes,
       dimensionTrends,
-      scoreTrend: buildScoreTrend(summaries, teamAverage),
+      scoreTrend: summaries.length ? buildScoreTrend(summaries, teamAverage) : [],
       monitoring,
       actions: actions.map((action) => ({
         id: action.id,
@@ -1108,6 +1158,7 @@ export async function getDashboardData(options: {
         status: action.status,
         completedAt: action.completedAt?.toISOString() || null
       })),
+      targets: targetData,
       calls: callsData.map((call) => ({
         ...call,
         feedback: feedbackState.byEntity.get(feedbackMapKey("scorecard", call.scorecardId)) || []
@@ -1123,19 +1174,21 @@ export async function getDashboardData(options: {
       })),
       reports: scopedReports.map((report) => ({
         id: report.id,
-        title: report.reportType.replace(/_/g, " "),
+        title: reportTitle(report.reportType),
         reportType: report.reportType,
         periodType: report.periodType,
         periodStart: report.periodStart,
         periodEnd: report.periodEnd,
         owner: report.repName || "Team",
-        storagePath: report.storagePath
+        storagePath: report.storagePath,
+        contentPreview: reportPreview(report.contentMarkdown),
+        createdAt: toIsoString(report.createdAt)
       })),
       feedbackStorageReady: feedbackState.ready,
       feedbackStorageMessage: feedbackState.message
     };
   } catch (error) {
     console.error(error);
-    return getMockDashboardData(options.roleHint || "manager", options.repId);
+    return null;
   }
 }

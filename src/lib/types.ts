@@ -115,6 +115,17 @@ export type CoachingAction = {
   completedAt?: string | null;
 };
 
+export type CoachingTarget = {
+  id: string;
+  repId: string;
+  dimension: RubricKey;
+  targetScore: number;
+  periodType: PeriodType;
+  periodStart: string;
+  periodEnd: string;
+  status: "active" | "completed" | "archived";
+};
+
 export type CallRow = {
   id: string;
   scorecardId: string;
@@ -174,6 +185,8 @@ export type ReportArtifact = {
   periodEnd: string;
   owner: string;
   storagePath: string | null;
+  contentPreview: string | null;
+  createdAt: string;
 };
 
 export type PipelineIncidentSource = "pipeline_job" | "ingestion_run" | "delivery_event" | "coverage_gap";
@@ -236,6 +249,7 @@ export type DashboardData = {
   scoreTrend: { label: string; score: number }[];
   dimensionTrends: Record<PeriodType, DimensionTrendPoint[]>;
   actions: CoachingAction[];
+  targets: CoachingTarget[];
   calls: CallRow[];
   summaries: CoachingSummary[];
   reports: ReportArtifact[];
