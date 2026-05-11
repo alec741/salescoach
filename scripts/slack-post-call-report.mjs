@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const CLOSE_API_BASE = "https://api.close.com/api/v1";
 const DEFAULT_SCORECARDS = "data/coach/codex-review/2026-05-06-over-10min/codex-scorecards.jsonl";
@@ -106,7 +107,7 @@ function compactLead(lead) {
   };
 }
 
-async function getLead(leadId, apiKey) {
+export async function getLead(leadId, apiKey) {
   if (!leadId) return null;
   const cache = readJson(LEAD_CACHE, {});
   if (cache[leadId]) return cache[leadId];
@@ -118,7 +119,7 @@ async function getLead(leadId, apiKey) {
   return lead;
 }
 
-async function getContact(contactId, apiKey) {
+export async function getContact(contactId, apiKey) {
   if (!contactId) return null;
   return closeFetch(`/contact/${contactId}/`, apiKey);
 }
@@ -251,7 +252,7 @@ function fallbackProspectName(contact, call) {
   return contactUtterance?.speaker_label || "Unknown prospect";
 }
 
-function buildManagerBlocks({ scorecard, call, lead, contact }) {
+export function buildManagerBlocks({ scorecard, call, lead, contact }) {
   const opportunity = (lead?.opportunities || []).find((item) => item.pipeline_name === "Sales") || lead?.opportunities?.[0] || null;
   const companyName = lead?.custom?.["Company Name"] || lead?.name || "Unknown company";
   const prospectName = fallbackProspectName(contact, call);
@@ -372,7 +373,7 @@ function buildManagerBlocks({ scorecard, call, lead, contact }) {
   };
 }
 
-async function postSlackMessage({ channel, text, blocks }) {
+export async function postSlackMessage({ channel, text, blocks }) {
   const token = process.env.SLACK_BOT_TOKEN || process.env.SLACK_ACCESS_TOKEN;
   const response = await fetch("https://slack.com/api/chat.postMessage", {
     method: "POST",
@@ -407,7 +408,14 @@ async function main() {
   console.log(`Manager call report sent: ts=${result.ts}`);
 }
 
-main().catch((error) => {
-  console.error(error.message || error);
-  process.exitCode = 1;
-});
+function isDirectExecution() {
+  const entry = process.argv[1];
+  return Boolean(entry) && path.resolve(entry) === fileURLToPath(import.meta.url);
+}
+
+if (isDirectExecution()) {
+  main().catch((error) => {
+    console.error(error.message || error);
+    process.exitCode = 1;
+  });
+}

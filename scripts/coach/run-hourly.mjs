@@ -89,6 +89,10 @@ function rawCallsPath(localDate) {
   return path.join(ROOT, "data", "coach", "raw-calls", `${localDate}.jsonl`);
 }
 
+function slackDeliveryConfigured() {
+  return Boolean(process.env.SLACK_MANAGER_CHANNEL_ID) && Boolean(process.env.SLACK_BOT_TOKEN || process.env.SLACK_ACCESS_TOKEN);
+}
+
 async function importScorecardsInline({ scorecardsFile, localDate }) {
   const { importScorecardsFile } = await import("../db/import-scorecards.ts");
   return importScorecardsFile({
@@ -96,6 +100,36 @@ async function importScorecardsInline({ scorecardsFile, localDate }) {
     callsFile: rawCallsPath(localDate),
     date: localDate
   });
+}
+
+async function postNewCallReportsToSlack({ scorecards, callsById }) {
+  if (!scorecards.length) return { sent: 0, failed: 0, skipped: 0, reason: "no_new_scorecards" };
+  if (!slackDeliveryConfigured()) {
+    return { sent: 0, failed: 0, skipped: scorecards.length, reason: "slack_not_configured" };
+  }
+
+  const apiKey = process.env.CLOSE_API_KEY;
+  const channel = process.env.SLACK_MANAGER_CHANNEL_ID;
+  const { buildManagerBlocks, getContact, getLead, postSlackMessage } = await import("../slack-post-call-report.mjs");
+  let sent = 0;
+  let failed = 0;
+
+  for (const scorecard of scorecards) {
+    try {
+      const call = callsById.get(scorecard.call_id) || null;
+      const contactId = call?.contact_id || scorecard.contact_id || null;
+      const [lead, contact] = await Promise.all([getLead(scorecard.lead_id, apiKey), getContact(contactId, apiKey)]);
+      const message = buildManagerBlocks({ scorecard, call, lead, contact });
+      const result = await postSlackMessage({ channel, ...message });
+      if (!result.ok) throw new Error(result.error || "unknown_error");
+      sent += 1;
+    } catch (error) {
+      failed += 1;
+      console.warn(`Slack call report failed for ${scorecard.call_id}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  return { sent, failed, skipped: 0, reason: null };
 }
 
 export async function runHourly(overrides = {}) {
@@ -162,6 +196,10 @@ export async function runHourly(overrides = {}) {
     }
 
     appendJsonl(scorecardsFile, scorecards);
+    const slackDelivery = await postNewCallReportsToSlack({
+      scorecards,
+      callsById: new Map(uniqueCalls.map((call) => [call.id, salesCallById.get(call.id) || call]))
+    });
 
     if (args.importToDb && scorecards.length && process.env.DATABASE_URL) {
       if (args.importMode === "inline") {
@@ -195,6 +233,10 @@ export async function runHourly(overrides = {}) {
       substantive_connected_calls: substantiveCalls.length,
       newly_graded_calls: scorecards.length,
       skipped_already_graded: substantiveCalls.length - scorecards.length,
+      slack_call_reports_sent: slackDelivery.sent,
+      slack_call_reports_failed: slackDelivery.failed,
+      slack_call_reports_skipped: slackDelivery.skipped,
+      slack_delivery_reason: slackDelivery.reason,
       scorecard_path: path.relative(ROOT, scorecardsFile),
       raw_calls_path: path.relative(ROOT, rawCallsPath(localDate))
     };

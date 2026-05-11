@@ -4,6 +4,8 @@ import path from "node:path";
 export const ROOT = /* turbopackIgnore: true */ process.cwd();
 export const API_BASE = "https://api.close.com/api/v1";
 export const COACH_TIMEZONE = process.env.COACH_TIMEZONE || "America/New_York";
+const BUSINESS_START_HOUR = Number(process.env.COACH_BUSINESS_START_HOUR || 6);
+const BUSINESS_END_HOUR = Number(process.env.COACH_BUSINESS_END_HOUR || 22);
 
 export function loadLocalEnv(root = ROOT) {
   const envPath = path.join(root, ".env");
@@ -107,7 +109,7 @@ export function getTimeParts(date, timeZone = COACH_TIMEZONE) {
 export function isBusinessHour(date = new Date(), timeZone = COACH_TIMEZONE) {
   const { weekday, hour } = getTimeParts(date, timeZone);
   const isWeekday = !["Sat", "Sun"].includes(weekday);
-  return isWeekday && hour >= 6 && hour < 18;
+  return isWeekday && hour >= BUSINESS_START_HOUR && hour < BUSINESS_END_HOUR;
 }
 
 export function toIso(date) {
