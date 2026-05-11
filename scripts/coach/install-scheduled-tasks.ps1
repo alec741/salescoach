@@ -18,13 +18,16 @@ function Register-CoachTask {
   Write-Host "Registered scheduled task: $TaskName"
 }
 
-$gradingTrigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday,Tuesday,Wednesday,Thursday,Friday -At 6:00am
-$gradingTrigger.Repetition = New-ScheduledTaskTrigger -Once -At 6:00am -RepetitionInterval (New-TimeSpan -Minutes 30) -RepetitionDuration (New-TimeSpan -Hours 12)
+$gradingTrigger = New-ScheduledTaskTrigger `
+  -Once `
+  -At (Get-Date).Date `
+  -RepetitionInterval (New-TimeSpan -Minutes 30) `
+  -RepetitionDuration (New-TimeSpan -Days 3650)
 
 Register-CoachTask `
   -TaskName "DecodedCoach-GradeEvery30Minutes" `
   -Script "scripts/coach/run-half-hour-grading.mjs" `
-  -Description "Decoded Coach pulls and grades 10+ minute substantive sales calls every 30 minutes, weekdays 6am-6pm Eastern." `
+  -Description "Decoded Coach wakes every 30 minutes; the runner only pulls and grades during configured coaching business hours." `
   -Trigger $gradingTrigger
 
 Register-CoachTask `
