@@ -669,10 +669,11 @@ export async function getCurrentAppUser(_preferredRole: "rep" | "manager" | "adm
   if (!sessionUser?.email) return null;
 
   const db = getDb();
+  const normalizedEmail = sessionUser.email.toLowerCase();
   const rows = await db
     .select()
     .from(appUsers)
-    .where(and(eq(appUsers.email, sessionUser.email), eq(appUsers.active, true)))
+    .where(and(sql`lower(${appUsers.email}) = ${normalizedEmail}`, eq(appUsers.active, true)))
     .limit(1);
 
   if (!rows[0]) return null;

@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, hasDatabase } from "@/db/client";
 import { appUsers, managerRepAssignments, reportArtifacts } from "@/db/schema";
@@ -33,13 +33,14 @@ async function currentUser() {
   const { data: session } = await auth.getSession();
   const email = (session?.user as SessionUser | undefined)?.email;
   if (!email) return null;
+  const normalizedEmail = email.toLowerCase();
   const rows = await getDb()
     .select({
       id: appUsers.id,
       role: appUsers.role
     })
     .from(appUsers)
-    .where(and(eq(appUsers.email, email), eq(appUsers.active, true)))
+    .where(and(sql`lower(${appUsers.email}) = ${normalizedEmail}`, eq(appUsers.active, true)))
     .limit(1);
   return rows[0] || null;
 }
