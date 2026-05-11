@@ -41,24 +41,48 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
-      CRON_SECRET: ${{ secrets.CRON_SECRET }}
       EVENT_SCHEDULE: ${{ github.event.schedule }}
       REQUESTED_JOB: ${{ github.event.inputs.job || '' }}
       FORCE: ${{ github.event.inputs.force || 'false' }}
       SKIP_SLACK: ${{ github.event.inputs.skipSlack || 'false' }}
+      CLOSE_API_KEY: ${{ secrets.CLOSE_API_KEY }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_ACCESS_TOKEN: ${{ secrets.SLACK_ACCESS_TOKEN }}
+      SLACK_MANAGER_CHANNEL_ID: ${{ secrets.SLACK_MANAGER_CHANNEL_ID }}
+      SLACK_REP_TARGETS_JSON: ${{ secrets.SLACK_REP_TARGETS_JSON }}
+      COACH_TIMEZONE: ${{ vars.COACH_TIMEZONE || 'America/New_York' }}
+      COACH_BUSINESS_START_HOUR: ${{ vars.COACH_BUSINESS_START_HOUR || '6' }}
+      COACH_BUSINESS_END_HOUR: ${{ vars.COACH_BUSINESS_END_HOUR || '22' }}
     steps:
-      - name: Call protected coaching endpoint
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run coaching job
         shell: bash
         run: |
           set -euo pipefail
 
-          if [[ -z "${APP_BASE_URL}" || -z "${CRON_SECRET}" ]]; then
-            echo "APP_BASE_URL and CRON_SECRET repository secrets are required." >&2
+          if [[ -z "${CLOSE_API_KEY}" || -z "${DATABASE_URL}" ]]; then
+            echo "CLOSE_API_KEY and DATABASE_URL repository secrets are required." >&2
             exit 1
           fi
 
-          base_url="${APP_BASE_URL%/}"
+          if [[ -z "${OPENROUTER_API_KEY}" && -z "${OPENAI_API_KEY}" ]]; then
+            echo "OPENROUTER_API_KEY or OPENAI_API_KEY repository secret is required." >&2
+            exit 1
+          fi
 
           job_from_schedule() {
             case "${EVENT_SCHEDULE}" in
@@ -71,43 +95,27 @@ jobs:
             esac
           }
 
-          endpoint_for_job() {
-            case "$1" in
-              grading) echo "/api/cron/grading" ;;
-              daily) echo "/api/cron/summaries/daily" ;;
-              weekly) echo "/api/cron/summaries/weekly" ;;
-              monthly) echo "/api/cron/summaries/monthly" ;;
-              quarterly) echo "/api/cron/summaries/quarterly" ;;
-              *) echo "Unknown job: $1" >&2; exit 1 ;;
-            esac
-          }
-
-          call_job() {
+          run_job() {
             local job="$1"
-            local endpoint
-            local query=()
-            endpoint="$(endpoint_for_job "$job")"
+            local args=()
 
-            if [[ "${FORCE}" == "true" && "$job" != "grading" ]]; then
-              query+=("force=1")
+            if [[ "${FORCE}" == "true" ]]; then
+              args+=("--force")
             fi
 
             if [[ "${SKIP_SLACK}" == "true" && "$job" != "grading" ]]; then
-              query+=("skipSlack=1")
+              args+=("--skip-slack")
             fi
 
-            local url="${base_url}${endpoint}"
-            if (( ${#query[@]} > 0 )); then
-              local joined
-              joined="$(IFS='&'; echo "${query[*]}")"
-              url="${url}?${joined}"
-            fi
-
-            echo "Calling ${job}: ${url}"
-            curl --fail --show-error --silent --max-time 900 --retry 2 --retry-delay 10 \
-              -H "Authorization: Bearer ${CRON_SECRET}" \
-              "${url}"
-            echo
+            echo "Running ${job}"
+            case "$job" in
+              grading) node scripts/coach/run-hourly.mjs "${args[@]}" ;;
+              daily) node scripts/coach/run-eod-daily-summary.mjs "${args[@]}" ;;
+              weekly) node scripts/coach/run-weekly-summary.mjs "${args[@]}" ;;
+              monthly) node scripts/coach/run-monthly-summary.mjs "${args[@]}" ;;
+              quarterly) node scripts/coach/run-quarterly-summary.mjs "${args[@]}" ;;
+              *) echo "Unknown job: $job" >&2; exit 1 ;;
+            esac
           }
 
           selected_job="${REQUESTED_JOB:-}"
@@ -117,8 +125,8 @@ jobs:
 
           if [[ "${selected_job}" == "all" ]]; then
             for job in grading daily weekly monthly quarterly; do
-              call_job "$job"
+              run_job "$job"
             done
           else
-            call_job "${selected_job}"
+            run_job "${selected_job}"
           fi
