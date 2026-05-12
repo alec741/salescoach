@@ -21,8 +21,8 @@ function addDays(date, days) {
   return next;
 }
 
-function localTsxPath() {
-  return path.join(ROOT, "node_modules", ".bin", process.platform === "win32" ? "tsx.cmd" : "tsx");
+function localTsxCliPath() {
+  return path.join(ROOT, "node_modules", "tsx", "dist", "cli.mjs");
 }
 
 export function currentCoachDate(now = new Date()) {
@@ -93,8 +93,16 @@ export function runNodeScript(relativePath, args = []) {
   });
 }
 
+export function runPythonScript(relativePath, args = []) {
+  execFileSync(process.platform === "win32" ? "python" : "python3", [path.join(ROOT, relativePath), ...args], {
+    cwd: ROOT,
+    env: process.env,
+    stdio: "inherit"
+  });
+}
+
 export function runTsxScript(relativePath, args = []) {
-  execFileSync(localTsxPath(), [path.join(ROOT, relativePath), ...args], {
+  execFileSync(process.execPath, [localTsxCliPath(), path.join(ROOT, relativePath), ...args], {
     cwd: ROOT,
     env: process.env,
     stdio: "inherit"

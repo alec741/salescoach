@@ -2,6 +2,8 @@ import {
   currentCoachDate,
   isWeekdayDate,
   loadLocalEnv,
+  runNodeScript,
+  runPythonScript,
   runTsxScript
 } from "./scheduler-shared.mjs";
 import { finishPipelineJob, startPipelineJob } from "./job-lock.mjs";
@@ -44,6 +46,26 @@ function slackConfigured() {
   return Boolean(process.env.SLACK_MANAGER_CHANNEL_ID) && Boolean(process.env.SLACK_BOT_TOKEN || process.env.SLACK_ACCESS_TOKEN);
 }
 
+function buildManagerPdf(date) {
+  const scorecardsPath = `data/coach/scorecards/openrouter/${date}.jsonl`;
+  runPythonScript("scripts/reports/generate_pdfs.py", ["--date", date, "--variant", "openrouter", "--scorecards", scorecardsPath]);
+  runTsxScript("scripts/db/import-report-artifacts.ts", ["--manifest", `output/pdf/daily/${date}/openrouter/manifest.json`]);
+  return `output/pdf/daily/${date}/openrouter/manager-summary.pdf`;
+}
+
+function deliverManagerPdf(date, pdfPath) {
+  runNodeScript("scripts/slack-upload-file.mjs", [
+    "--file",
+    pdfPath,
+    "--filename",
+    `manager-coaching-summary-${date}.pdf`,
+    "--title",
+    `Manager Coaching Summary - ${date}`,
+    "--initial-comment",
+    `Daily manager coaching PDF for ${date}.`
+  ]);
+}
+
 async function main() {
   loadLocalEnv();
   const args = parseArgs(process.argv.slice(2));
@@ -75,17 +97,27 @@ async function main() {
     runTsxScript("scripts/db/generate-summaries.ts", summaryArgs);
 
     let slackDelivery = "skipped";
+    let pdfDelivery = "skipped";
     if (!args.skipSlack) {
       if (slackConfigured()) {
         runTsxScript("scripts/slack-deliver-summary.ts", ["--date", date, "--period", "daily"]);
         slackDelivery = "sent";
+        try {
+          const pdfPath = buildManagerPdf(date);
+          deliverManagerPdf(date, pdfPath);
+          pdfDelivery = "sent";
+        } catch (error) {
+          pdfDelivery = "failed";
+          console.warn(`Skipped manager PDF Slack upload: ${error.message}`);
+        }
       } else {
         slackDelivery = "not_configured";
+        pdfDelivery = "not_configured";
         console.log("Skipped Slack delivery: SLACK_MANAGER_CHANNEL_ID and a Slack token are required.");
       }
     }
 
-    await finishPipelineJob(job.jobId, { result: { date, period: "daily", llm: args.llm, slack_delivery: slackDelivery } });
+    await finishPipelineJob(job.jobId, { result: { date, period: "daily", llm: args.llm, slack_delivery: slackDelivery, pdf_delivery: pdfDelivery } });
   } catch (error) {
     await finishPipelineJob(job.jobId, { status: "failed", errorMessage: error.message });
     throw error;

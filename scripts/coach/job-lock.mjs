@@ -16,9 +16,9 @@ export async function startPipelineJob({ jobType, idempotencyKey, payload = {}, 
       update pipeline_jobs
       set status = 'failed',
           finished_at = now(),
+          idempotency_key = idempotency_key || ':superseded:' || id::text,
           error_message = 'Superseded by forced rerun'
       where idempotency_key = ${idempotencyKey}
-        and status in ('queued', 'running')
     `;
   }
 
