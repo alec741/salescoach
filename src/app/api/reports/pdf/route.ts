@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import crypto from "node:crypto";
 import path from "node:path";
 import { and, eq, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
@@ -27,6 +28,23 @@ function resolveReportPath(storagePath: string) {
 }
 
 type SessionUser = { email?: string | null };
+
+function reportLinkSecret() {
+  return process.env.REPORT_LINK_SECRET || process.env.CRON_SECRET || process.env.NEON_AUTH_COOKIE_SECRET || "";
+}
+
+function signedReportToken(id: string) {
+  const secret = reportLinkSecret();
+  if (!secret) return "";
+  return crypto.createHmac("sha256", secret).update(`report-pdf:${id}`).digest("hex");
+}
+
+function isValidSignedReportToken(id: string, token: string | null) {
+  if (!token) return false;
+  const expected = signedReportToken(id);
+  if (!expected || expected.length !== token.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(token));
+}
 
 async function currentUser() {
   if (!hasDatabase || !isNeonAuthConfigured) return null;
@@ -64,9 +82,6 @@ async function canAccessReport(input: {
 async function storagePathFromRequest(request: NextRequest) {
   const id = request.nextUrl.searchParams.get("id");
   if (id && hasDatabase) {
-    if (!isNeonAuthConfigured) throw new Error("Authentication is not configured.");
-    const user = await currentUser();
-    if (!user) throw new Error("Authentication required.");
     const rows = await getDb()
       .select({
         storagePath: reportArtifacts.storagePath,
@@ -77,6 +92,14 @@ async function storagePathFromRequest(request: NextRequest) {
       .where(eq(reportArtifacts.id, id))
       .limit(1);
     if (!rows[0]?.storagePath) return null;
+
+    if (isValidSignedReportToken(id, request.nextUrl.searchParams.get("token"))) {
+      return rows[0].storagePath;
+    }
+
+    if (!isNeonAuthConfigured) throw new Error("Authentication is not configured.");
+    const user = await currentUser();
+    if (!user) throw new Error("Authentication required.");
     if (!(await canAccessReport({ user, report: rows[0] }))) throw new Error("Not authorized for this report.");
     return rows[0].storagePath;
   }

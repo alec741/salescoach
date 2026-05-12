@@ -45,6 +45,8 @@ jobs:
       REQUESTED_JOB: ${{ github.event.inputs.job || '' }}
       FORCE: ${{ github.event.inputs.force || 'false' }}
       SKIP_SLACK: ${{ github.event.inputs.skipSlack || 'false' }}
+      APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
       CLOSE_API_KEY: ${{ secrets.CLOSE_API_KEY }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}

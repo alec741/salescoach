@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import crypto from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { and, asc, desc, eq } from "drizzle-orm";
@@ -267,7 +268,12 @@ function reportUrl() {
 function pdfUrl(summary: SummaryPayload) {
   const baseUrl = appBaseUrl();
   if (!baseUrl || !summary.pdfArtifactId) return null;
-  return `${baseUrl}/api/reports/pdf?id=${encodeURIComponent(summary.pdfArtifactId)}&download=1`;
+  const secret = process.env.REPORT_LINK_SECRET || process.env.CRON_SECRET || process.env.NEON_AUTH_COOKIE_SECRET || "";
+  const token = secret
+    ? crypto.createHmac("sha256", secret).update(`report-pdf:${summary.pdfArtifactId}`).digest("hex")
+    : "";
+  const tokenQuery = token ? `&token=${encodeURIComponent(token)}` : "";
+  return `${baseUrl}/api/reports/pdf?id=${encodeURIComponent(summary.pdfArtifactId)}${tokenQuery}&download=1`;
 }
 
 function buildManagerDigestBlocks(summary: SummaryPayload) {
