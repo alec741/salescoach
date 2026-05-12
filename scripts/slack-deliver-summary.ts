@@ -262,7 +262,10 @@ function appBaseUrl() {
 
 function withVercelBypass(url: string) {
   const secret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET || "";
-  if (!secret) return url;
+  if (!secret) {
+    if (url.includes("alec-5299s-projects.vercel.app")) return "";
+    return url;
+  }
   const parsed = new URL(url);
   parsed.searchParams.set("x-vercel-protection-bypass", secret);
   return parsed.toString();
