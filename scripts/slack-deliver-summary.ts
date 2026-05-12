@@ -260,9 +260,17 @@ function appBaseUrl() {
   return (process.env.APP_BASE_URL || process.env.SMOKE_BASE_URL || "").replace(/\/$/, "");
 }
 
+function withVercelBypass(url: string) {
+  const secret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET || "";
+  if (!secret) return url;
+  const parsed = new URL(url);
+  parsed.searchParams.set("x-vercel-protection-bypass", secret);
+  return parsed.toString();
+}
+
 function reportUrl() {
   const baseUrl = appBaseUrl();
-  return baseUrl ? `${baseUrl}/manager/reports` : null;
+  return baseUrl ? withVercelBypass(`${baseUrl}/manager/reports`) : null;
 }
 
 function pdfUrl(summary: SummaryPayload) {
@@ -273,7 +281,7 @@ function pdfUrl(summary: SummaryPayload) {
     ? crypto.createHmac("sha256", secret).update(`report-pdf:${summary.pdfArtifactId}`).digest("hex")
     : "";
   const tokenQuery = token ? `&token=${encodeURIComponent(token)}` : "";
-  return `${baseUrl}/api/reports/pdf?id=${encodeURIComponent(summary.pdfArtifactId)}${tokenQuery}&download=1`;
+  return withVercelBypass(`${baseUrl}/api/reports/pdf?id=${encodeURIComponent(summary.pdfArtifactId)}${tokenQuery}&download=1`);
 }
 
 function buildManagerDigestBlocks(summary: SummaryPayload) {
